@@ -8,7 +8,7 @@ plugins {
 
 group = 'com.app'
 version = '0.0.1-SNAPSHOT'
-description = 'Demo project for Spring Boot'
+description = 'Multi-tenant notification delivery platform — DTU Fagprojekt S2026'
 
 java {
 	toolchain {
