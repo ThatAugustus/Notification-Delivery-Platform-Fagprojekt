@@ -45,7 +45,7 @@ docker compose up -d        # Start PostgreSQL, RabbitMQ, Redis
 ## Team
 
 - August Hansen
-- [Group member 2]
+- Anton Mervig
 - [Group member 3]
 
 ## License
