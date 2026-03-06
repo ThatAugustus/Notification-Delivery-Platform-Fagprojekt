@@ -292,9 +292,72 @@ This is a suggestion — we should discuss and adjust based on preferences.
 - **Report writing** (each person writes about their components)
 - **Code review** (PR-based workflow)
 
+
+### Learn Before Coding (Week 1-2)
+1. Spring Boot Basics
+You know Java, but Spring Boot has its own patterns:
+
+@RestController, @PostMapping, @RequestBody — how to build REST endpoints
+@Service, @Repository, @Autowired — dependency injection (Spring wires your classes together)
+application.yml — how configuration works
+Spring Data JPA — how to define database tables as Java classes and query them
+How to learn: Follow one "Build a REST API with Spring Boot" tutorial (2-3 hours). That covers 80% of what you need.
+
+2. Docker Compose
+You need to run PostgreSQL, RabbitMQ, and Redis locally. Docker Compose starts all three with one command.
+
+What a compose.yaml file looks like
+docker compose up -d / docker compose down
+How to view logs: docker compose logs rabbitmq
+How to learn: 30 minutes. It's a YAML file with service definitions.
+
+3. RabbitMQ Concepts
+Not the admin UI — just the core mental model:
+
+Producer publishes a message to an exchange
+Exchange routes it to a queue based on a routing key
+Consumer reads from the queue and acknowledges when done
+If consumer doesn't acknowledge → message goes back in the queue
+How to learn: Read the RabbitMQ "Hello World" tutorial for Spring AMQP. ~1 hour.
+
+4. How REST APIs Work (Design Side)
+You've consumed APIs before but never designed one. Key decisions:
+
+Resource naming (/api/v1/notifications, not /sendNotification)
+HTTP methods (POST to create, GET to read)
+Status codes (202 Accepted for async, 429 Too Many Requests for rate limit)
+Request/response JSON structure
+How to learn: Skim any "REST API design best practices" article. ~30 minutes.
+
+### Learn As You Build (You'll Pick These Up During Development)
+Concept	When you'll need it	How hard
+Spring AMQP (@RabbitListener, RabbitTemplate)	When you build the queue integration (week 3-4)	Easy — it's annotations on methods
+Redis with Spring (StringRedisTemplate)	When you build rate limiting + idempotency (week 7-8)	Easy — set(key, value), get(key), increment(key)
+Testcontainers	When you write integration tests (week 9+)	Medium — but the docs are excellent
+k6 load testing	When you benchmark fairness (sprint)	Easy — it's JavaScript scripts
+Database transactions (@Transactional)	When you implement the outbox pattern (week 3-4)	Medium — need to understand what "atomic" means in DB context
+What You DON'T Need to Learn
+Thing	Why not
+Kubernetes / cloud deployment	We run locally with Docker Compose
+Frontend frameworks	No frontend (Grafana handles dashboards)
+Kafka	We use RabbitMQ (simpler for our use case)
+Security frameworks (Spring Security)	We implement simple API key auth ourselves — no need for the full framework
+GraphQL	Your build.gradle has a DGS plugin — ignore it, we use REST
+Priority for Week 1
+If each person spends their 6 hours on this:
+
+Everyone: Do a Spring Boot REST API tutorial (build a simple CRUD app with PostgreSQL) — 3 hours
+Everyone: Get Docker Compose running with PostgreSQL + RabbitMQ — 1 hour
+Person 1 (Queue): Do the RabbitMQ Spring AMQP tutorial — 2 hours
+Person 2 (Workers): Read about MailHog + WireMock — 2 hours
+Person 3 (API): Read about Spring Data JPA + database migrations — 2 hours
+After week 1, everyone can write Java code that talks to a database and a queue. That's all you need to start building.
+
+
+
 ---
 
-## Part 7: Key Terms Glossary
+## Part 8: Key Terms Glossary
 
 | Term | What it means |
 |---|---|
