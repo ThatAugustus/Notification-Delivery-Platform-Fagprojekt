@@ -10,4 +10,6 @@ import com.app.demo.model.Notification;
 
 public interface NotificationRepository extends JpaRepository<Notification, UUID> {
 
+    
+
 }

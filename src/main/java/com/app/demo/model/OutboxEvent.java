@@ -35,14 +35,26 @@ public class OutboxEvent {
     @Column(nullable = false, columnDefinition = "TEXT")
     private String payload;
 
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private Instant createdAt = Instant.now();
+
     @Column(nullable = false)
     private boolean published = false;
 
     @Column(name = "published_at")
     private Instant publishedAt;
 
-    @Column(name = "created_at", nullable = false, updatable = false)
-    private Instant createdAt = Instant.now();
+    @Column(name = "retry_count", nullable = false)
+    private int retryCount = 0;
+
+    @Column(name = "last_error")
+    private String lastError;
+
+    
+
+
+
+    
 
     // Constructor for creating a new outbox event
     public OutboxEvent(Notification notification, String payload) {

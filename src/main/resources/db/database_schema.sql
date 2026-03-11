@@ -35,13 +35,24 @@ create table notifications (
     recipient VARCHAR(255) not null, -- the recipient of the notification. for example, if the channel is email, then this field will store the email address of the recipient. if the channel is sms, then this field will store the phone number of the recipient. etc.
     subject VARCHAR(255), -- emails needs a subject, but other channels might not need it. so we will make it nullable.
     content TEXT not null, -- the content of the notification. this will store the actual message that we want to send to the recipient.
-    status VARCHAR(50) not null Default 'ACCEPTED', -- the status of the notification.
-     -- Retry tracking
+    status notification_status not null Default 'ACCEPTED', -- the status of the notification.
+    -- Retry tracking
     retry_count INT NOT NULL DEFAULT 0,-- How many times we've retried so far
     max_retries INT NOT NULL DEFAULT 5,-- Give up after this many retries
     next_retry_at TIMESTAMP,-- When to retry next (NULL = not scheduled)
     created_at TIMESTAMP not null with time zone DEFAULT now(), -- timestamp for when the notification was created
     updated_at TIMESTAMP not null with time zone DEFAULT now() -- timestamp for when the notification was last updated
+);
+
+-- Enum for notification status ()
+CREATE TYPE notification_status AS ENUM (
+  'ACCEPTED',
+  'QUEUED',
+  'PROCESSING', -- maybe not needed?
+  'DELIVERED',
+  'FAILED',
+  --'DEAD_LETTERED', not part of MVP
+  --'RETRY_SCHEDULED' not part of MVP
 
 );
 
@@ -50,10 +61,15 @@ CREATE TABLE delivery_attempts (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     notification_id UUID NOT NULL REFERENCES notifications(id) ON DELETE CASCADE,
     attempt_number INT NOT NULL,
-    status VARCHAR(20)  NOT NULL,-- SUCCESS or FAILED
+    status delivery_status NOT NULL,
     error_message TEXT,-- NULL on success, error details on failure
     duration_ms BIGINT, -- How long this attempt took in milliseconds
     attempted_at TIMESTAMP NOT NULL DEFAULT now()
+);
+
+CREATE TYPE delivery_status AS ENUM (
+  'SUCCESS',
+  'FAILED'
 );
 
 
@@ -62,6 +78,10 @@ create table outbox_events (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     notification_id UUID NOT NULL REFERENCES notifications(id) ON DELETE CASCADE,
     payload TEXT NOT NULL, -- the payload that we want to publish to rabbitmq.
+    created_at TIMESTAMP NOT NULL DEFAULT now(),
     published BOOLEAN NOT NULL DEFAULT false, -- whether the event has been published to rabbitmq or not. we will set this to true once we have successfully published the event to rabbitmq, so that the separate process will know that it can safely delete this event from the table.
-    created_at TIMESTAMP NOT NULL DEFAULT now()
+    published_at TIMESTAMP, -- publisher can also fail, so we need to keep track of when the event was published.
+    retry_count INT NOT NULL DEFAULT 0, -- the number of times we have tried to publish the event to rabbitmq.
+    last_error TEXT -- the last error message that was encountered when trying to publish the event to rabbitmq.
 );
+    

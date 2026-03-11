@@ -17,7 +17,7 @@ A working system where a notification goes in and an email comes out. Naive but 
 
 ### Setup & Learning
 6. Everyone learns the basics of Spring Boot (building REST APIs, connecting to a database)
-7. Set up Docker Compose so everyone can start PostgreSQL, RabbitMQ, Redis, and MailHog with one command
+7. Set up Docker Compose so everyone can start PostgreSQL, RabbitMQ, Redis (not part of mvp), and MailHog/mailpit with one command
 8. Set up the Spring Boot project with connections to all services verified
 
 ### The Database

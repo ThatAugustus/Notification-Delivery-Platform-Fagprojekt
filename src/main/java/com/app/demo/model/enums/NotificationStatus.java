@@ -5,5 +5,7 @@ public enum NotificationStatus {
     QUEUED,
     PROCESSING,
     DELIVERED,
-    FAILED
+    FAILED,
+    //DEAD_LETTERED, // not part of MVP
+    //RETRY_SCHEDULED // not part of MVP
 }
