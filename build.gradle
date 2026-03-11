@@ -28,6 +28,7 @@ repositories {
 
 dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter'
+	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
 	compileOnly 'org.projectlombok:lombok'
 	developmentOnly 'org.springframework.boot:spring-boot-devtools'
 	developmentOnly 'org.springframework.boot:spring-boot-docker-compose'
@@ -35,6 +36,11 @@ dependencies {
 	annotationProcessor 'org.projectlombok:lombok'
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+
+		// ── Database ──
+	runtimeOnly    'org.postgresql:postgresql'                               // PostgreSQL JDBC driver
+	implementation 'org.flywaydb:flyway-core'                                // Database migrations (version-controlled schema)
+	runtimeOnly    'org.flywaydb:flyway-database-postgresql'                 // Flyway PostgreSQL support
 }
 
 generateJava {
