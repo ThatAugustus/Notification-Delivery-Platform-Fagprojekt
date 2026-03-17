@@ -1,10 +1,12 @@
 package com.app.demo.email;
 
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
 
 @Service
+@ConditionalOnProperty(name = "notification.email.provider", havingValue = "smtp", matchIfMissing = true)
 public class SmtpEmailProvider implements EmailProvider {
 
     private final JavaMailSender mailSender;
