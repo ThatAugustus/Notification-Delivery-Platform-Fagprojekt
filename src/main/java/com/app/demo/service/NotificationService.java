@@ -38,8 +38,23 @@ public class NotificationService {
     }
 
     private String buildPayload(Notification notification) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'buildPayload'");
+        try {
+            //Maps the notification to a payload in JSON format
+            com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+            //Creates a new payload with the notification data
+            com.app.demo.dto.NotificationPayload payload = new com.app.demo.dto.NotificationPayload(
+                notification.getId(),
+                notification.getChannel(),
+                notification.getTenant().getDefaultFromEmail() != null ? notification.getTenant().getDefaultFromEmail() : "noreply@notificationplatform.com",
+                notification.getRecipient(),
+                notification.getSubject(),
+                notification.getBody()
+            );
+            //Returns the payload in JSON format
+            return mapper.writeValueAsString(payload);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to serialize notification payload", e);
+        }
     }
 
 }

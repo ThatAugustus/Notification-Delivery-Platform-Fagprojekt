@@ -2,8 +2,9 @@
 -- Table for storing tenants information. basically to let the system know which tenant is sending the request.
 -- Instead of using normal increment id we are using uuid to make it more secure and less predictable. 
 CREATE TABLE tenants (
-    id UUID primary key DEFAULT gen_random_uuid(), -- generate random uuid for each tenant if not provided
-    name VARCHAR(255) not null, -- the name of the tenant
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(), -- generate random uuid for each tenant if not provided
+    name VARCHAR(255) not null UNIQUE, -- the name of the tenant
+    default_from_email VARCHAR(255), -- the default email address that notifications from this tenant will be sent from
     created_at TIMESTAMP not null with time zone DEFAULT now(), -- timestamp for when the tenant was created
     updated_at TIMESTAMP not null with time zone DEFAULT now() -- timestamp for when the tenant was last updated
 );

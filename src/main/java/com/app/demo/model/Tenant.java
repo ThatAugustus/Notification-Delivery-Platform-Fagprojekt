@@ -29,6 +29,9 @@ public class Tenant {
     @Column(nullable = false)
     private String name;
 
+    @Column(name = "default_from_email")
+    private String defaultFromEmail;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt = Instant.now();
 
