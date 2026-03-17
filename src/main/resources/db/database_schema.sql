@@ -32,11 +32,12 @@ create table notifications (
     id UUID primary key DEFAULT gen_random_uuid(), -- generate random uuid for each notification if not provided
     tenant_id UUID not null references tenants(id) on delete cascade, -- foreign key to the tenants table. cascade delete means that if a tenant is deleted, all their notifications will also be deleted.
     idempotency_key VARCHAR(255), -- the idempotency key for the notification. this is used to ensure that if a request is sent multiple times with the same idempotency key, only one notification will be created. so we will need to make sure that our backend has a function to generate unique idempotency keys for each request and check for duplicates before creating a new notification.
-    chanel VARCHAR(50) not null, -- the channel through which the notification was sent. for example, "email", "sms", "push" etc.
+    channel VARCHAR(50) not null, -- the channel through which the notification was sent. for example, "email", "sms", "push" etc.
     recipient VARCHAR(255) not null, -- the recipient of the notification. for example, if the channel is email, then this field will store the email address of the recipient. if the channel is sms, then this field will store the phone number of the recipient. etc.
     subject VARCHAR(255), -- emails needs a subject, but other channels might not need it. so we will make it nullable.
-    content TEXT not null, -- the content of the notification. this will store the actual message that we want to send to the recipient.
-    status notification_status not null Default 'ACCEPTED', -- the status of the notification.
+    body TEXT not null, -- the body/content of the notification. this will store the actual message that we want to send to the recipient.
+    status VARCHAR(50) NOT NULL DEFAULT 'ACCEPTED'    -- the status of the notification.
+        CHECK (status IN ('ACCEPTED', 'QUEUED', 'PROCESSING', 'DELIVERED', 'FAILED')),
     -- Retry tracking
     retry_count INT NOT NULL DEFAULT 0,-- How many times we've retried so far
     max_retries INT NOT NULL DEFAULT 5,-- Give up after this many retries
@@ -45,33 +46,18 @@ create table notifications (
     updated_at TIMESTAMP not null with time zone DEFAULT now() -- timestamp for when the notification was last updated
 );
 
--- Enum for notification status ()
-CREATE TYPE notification_status AS ENUM (
-  'ACCEPTED',
-  'QUEUED',
-  'PROCESSING', -- maybe not needed?
-  'DELIVERED',
-  'FAILED',
-  --'DEAD_LETTERED', not part of MVP
-  --'RETRY_SCHEDULED' not part of MVP
-
-);
-
 -- this is kind of a history table for the delivery attempts of each notification. each time we try to deliver a notification, we will create a new row in this table to track the attempt. so we can use this table to keep track of how many times we have tried to deliver a notification, and what was the result of each attempt (success or failure).
 CREATE TABLE delivery_attempts (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     notification_id UUID NOT NULL REFERENCES notifications(id) ON DELETE CASCADE,
     attempt_number INT NOT NULL,
-    status delivery_status NOT NULL,
+    status VARCHAR(50) NOT NULL
+        CHECK (status IN ('SUCCESS', 'FAILED')),
     error_message TEXT,-- NULL on success, error details on failure
     duration_ms BIGINT, -- How long this attempt took in milliseconds
     attempted_at TIMESTAMP NOT NULL DEFAULT now()
 );
 
-CREATE TYPE delivery_status AS ENUM (
-  'SUCCESS',
-  'FAILED'
-);
 
 
 -- this table is for solving the silent loss problem. instead of insert into notification and then directuly try to publish to rabbitmq, we will first insert into this table and then have a separate process that will read from this table and try to publish to rabbitmq. so if the process crashes after inserting into this table but before publishing to rabbitmq, we won't lose the notification because it is safely stored in this table. and the separate process will keep trying to publish to rabbitmq until it succeeds, so we won't lose any notifications even if there are temporary issues with rabbitmq.
@@ -85,4 +71,3 @@ create table outbox_events (
     retry_count INT NOT NULL DEFAULT 0, -- the number of times we have tried to publish the event to rabbitmq.
     last_error TEXT -- the last error message that was encountered when trying to publish the event to rabbitmq.
 );
-    

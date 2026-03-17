@@ -44,10 +44,10 @@ public class Notification {
     @Column(nullable = false, length = 20)
     private NotificationChannel channel;
 
-    @Column(nullable = false, length = 500)
+    @Column(nullable = false, length = 255)
     private String recipient;
 
-    @Column(length = 500)
+    @Column(length = 255)
     private String subject;
 
     @Column(nullable = false, columnDefinition = "TEXT")
