@@ -63,7 +63,7 @@ CREATE TABLE delivery_attempts (
 -- this table is for solving the silent loss problem. instead of insert into notification and then directuly try to publish to rabbitmq, we will first insert into this table and then have a separate process that will read from this table and try to publish to rabbitmq. so if the process crashes after inserting into this table but before publishing to rabbitmq, we won't lose the notification because it is safely stored in this table. and the separate process will keep trying to publish to rabbitmq until it succeeds, so we won't lose any notifications even if there are temporary issues with rabbitmq.
 create table outbox_events (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    notification_id UUID NOT NULL REFERENCES notifications(id) ON DELETE CASCADE,
+    notification_id UUID NOT NULL UNIQUE REFERENCES notifications(id) ON DELETE CASCADE,
     payload TEXT NOT NULL, -- the payload that we want to publish to rabbitmq.
     created_at TIMESTAMP NOT NULL DEFAULT now(),
     published BOOLEAN NOT NULL DEFAULT false, -- whether the event has been published to rabbitmq or not. we will set this to true once we have successfully published the event to rabbitmq, so that the separate process will know that it can safely delete this event from the table.
