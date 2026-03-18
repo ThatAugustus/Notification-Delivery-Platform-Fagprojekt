@@ -1,23 +1,20 @@
 package com.app.demo.controller;
 
-// Receives HTTP requests, calls services, returns responses
+import java.util.Map;
 
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.app.demo.dto.NotificationRequest;
-
-import jakarta.validation.Valid;
-
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
-import org.springframework.http.ResponseEntity;
-import com.app.demo.service.NotificationService;
 import com.app.demo.model.Notification;
 import com.app.demo.model.Tenant;
+import com.app.demo.service.NotificationService;
 
-import java.util.Map;
+import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/v1/notifications")
@@ -29,14 +26,16 @@ public class NotificationController {
         this.notificationService = notificationService;
     }
 
-    @PostMapping // basic setup
-    public ResponseEntity<?> createNotification(@RequestHeader("X-API-Key") String apiKey,
+    @PostMapping
+    public ResponseEntity<?> createNotification(
+            @AuthenticationPrincipal Tenant tenant,
             @Valid @RequestBody NotificationRequest request) {
-        // TODO: look up Tenant by apiKey (e.g. tenantService.findByApiKey(apiKey))
-        Tenant tenant = null;
 
         Notification saved = notificationService.createNotification(tenant, request);
-        // ...
-        return ResponseEntity.status(202).body(Map.of("id", saved.getId(), "status", "ACCEPTED"));
+
+        return ResponseEntity.status(202).body(Map.of(
+            "id", saved.getId(),
+            "status", saved.getStatus()
+        ));
     }
 }
