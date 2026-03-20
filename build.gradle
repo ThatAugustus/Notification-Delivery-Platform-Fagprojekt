@@ -50,6 +50,9 @@ dependencies {
 	runtimeOnly    'org.postgresql:postgresql'                               // PostgreSQL JDBC driver
 	implementation 'org.flywaydb:flyway-core'                                // Database migrations (version-controlled schema)
 	runtimeOnly    'org.flywaydb:flyway-database-postgresql'                 // Flyway PostgreSQL support
+	implementation 'org.springframework.boot:spring-boot-flyway'
+
+	implementation 'org.springframework.boot:spring-boot-jackson'
 }
 
 generateJava {

@@ -1,42 +1,42 @@
 package com.app.demo.controller;
 
-// Receives HTTP requests, calls services, returns responses
+import java.util.Map;
 
-import org.springframework.web.bind.annotation.RestController;
-
-import com.app.demo.dto.NotificationRequest;
-
-import jakarta.validation.Valid;
-
-import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
-import org.springframework.http.ResponseEntity;
-import com.app.demo.service.NotificationService;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.app.demo.dto.NotificationRequest;
 import com.app.demo.model.Notification;
 import com.app.demo.model.Tenant;
+import com.app.demo.service.ApiKeyService;
+import com.app.demo.service.NotificationService;
 
-import java.util.Map;
+import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/v1/notifications")
 public class NotificationController {
 
     private final NotificationService notificationService;
+    private final ApiKeyService apiKeyService;
 
-    public NotificationController(NotificationService notificationService) {
+    public NotificationController(NotificationService notificationService,
+                                   ApiKeyService apiKeyService) {
         this.notificationService = notificationService;
+        this.apiKeyService = apiKeyService;
     }
 
-    @PostMapping // basic setup
-    public ResponseEntity<?> createNotification(@RequestHeader("X-API-Key") String apiKey,
+    @PostMapping
+    public ResponseEntity<?> createNotification(
+            @RequestHeader("X-API-Key") String rawApiKey,
             @Valid @RequestBody NotificationRequest request) {
-        // TODO: look up Tenant by apiKey (e.g. tenantService.findByApiKey(apiKey))
-        Tenant tenant = null;
 
+        Tenant tenant = apiKeyService.resolveTenant(rawApiKey);
         Notification saved = notificationService.createNotification(tenant, request);
-        // ...
         return ResponseEntity.status(202).body(Map.of("id", saved.getId(), "status", "ACCEPTED"));
     }
 }
