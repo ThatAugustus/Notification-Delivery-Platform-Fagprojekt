@@ -4,11 +4,11 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
-// Data Transfer Object
 @Data
 public class NotificationRequest {
     @NotNull private String channel;
     @NotBlank private String recipient;
     @NotBlank private String content;
-    private String subject;  // optional
+    private String subject;        // optional
+    private String idempotencyKey; // optional if provided, duplicate requests are ignored
 }

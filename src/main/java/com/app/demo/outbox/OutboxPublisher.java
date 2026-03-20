@@ -7,6 +7,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.app.demo.model.OutboxEvent;
 import com.app.demo.model.enums.NotificationStatus;
@@ -17,7 +18,6 @@ import com.app.demo.repository.OutboxEventRepository;
 public class OutboxPublisher {
 
     private static final Logger log = LoggerFactory.getLogger(OutboxPublisher.class);
-
     private final OutboxEventRepository outboxEventRepository;
     private final NotificationRepository notificationRepository;
     private final RabbitTemplate rabbitTemplate;
@@ -31,39 +31,31 @@ public class OutboxPublisher {
         this.rabbitTemplate = rabbitTemplate;
     }
 
-    @Scheduled(fixedDelay = 1000) // poll every 1 second
+    @Scheduled(fixedDelay = 1000)
+    @Transactional  // keeps the JPA session open for the entire poll cycle
     public void pollAndPublish() {
         List<OutboxEvent> pending = outboxEventRepository.findByPublishedFalse();
-
         for (OutboxEvent event : pending) {
             try {
-                // 1. Send the payload to RabbitMQ
                 rabbitTemplate.convertAndSend(
-                        "notifications-exchange", // exchange name
-                        "notification.email", // routing key
-                        event.getPayload() // the JSON message
+                        "notifications-exchange",
+                        "notification.email",
+                        event.getPayload()
                 );
-
-                // 2. Mark the outbox row as published
                 event.markPublished();
                 outboxEventRepository.save(event);
 
-                // 3. Update the notification status to QUEUED
                 var notification = event.getNotification();
                 notification.setStatus(NotificationStatus.QUEUED);
                 notificationRepository.save(notification);
 
                 log.info("Published outbox event {} for notification {}",
                         event.getId(), notification.getId());
-
             } catch (Exception e) {
-                // Publishing failed — record the error, try again next cycle
                 event.setRetryCount(event.getRetryCount() + 1);
                 event.setLastError(e.getMessage());
                 outboxEventRepository.save(event);
-
-                log.error("Failed to publish outbox event {}: {}",
-                        event.getId(), e.getMessage());
+                log.error("Failed to publish outbox event {}: {}", event.getId(), e.getMessage());
             }
         }
     }
