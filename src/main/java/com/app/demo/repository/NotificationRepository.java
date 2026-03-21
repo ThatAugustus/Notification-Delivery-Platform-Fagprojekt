@@ -9,4 +9,5 @@ import com.app.demo.model.Notification;
 
 public interface NotificationRepository extends JpaRepository<Notification, UUID> {
     Optional<Notification> findByTenant_IdAndIdempotencyKey(UUID tenantId, String idempotencyKey);
+    Optional<Notification> findByIdAndTenant_Id(UUID id, UUID tenantId);
 }

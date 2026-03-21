@@ -7,6 +7,7 @@ import java.util.HexFormat;
 
 import org.springframework.stereotype.Service;
 
+import com.app.demo.exception.ApiKeyAuthenticationException;
 import com.app.demo.model.ApiKey;
 import com.app.demo.model.Tenant;
 import com.app.demo.repository.ApiKeyRepository;
@@ -26,10 +27,10 @@ public class ApiKeyService {
         String hash = sha256(rawApiKey);
 
         ApiKey apiKey = apiKeyRepository.findByKeyHash(hash)
-                .orElseThrow(() -> new RuntimeException("Invalid API key"));
+                .orElseThrow(() -> new ApiKeyAuthenticationException("Invalid API key"));
 
         if (!apiKey.isActive()) {
-            throw new RuntimeException("API key is revoked");
+            throw new ApiKeyAuthenticationException("API key is revoked");
         }
 
         return apiKey.getTenant();

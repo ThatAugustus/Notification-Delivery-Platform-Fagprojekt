@@ -3,6 +3,8 @@ package com.app.demo.service;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.UUID;
+
 import com.app.demo.dto.NotificationPayload;
 import com.app.demo.dto.NotificationRequest;
 import com.app.demo.model.Notification;
@@ -31,7 +33,7 @@ public class NotificationService {
     @Transactional
     public Notification createNotification(Tenant tenant, NotificationRequest request) {
 
-        // Idempotency check — if this key was already used, return the existing notification
+        // Idempotency check
         if (request.getIdempotencyKey() != null) {
             var existing = notificationRepository
                     .findByTenant_IdAndIdempotencyKey(tenant.getId(), request.getIdempotencyKey());
@@ -56,6 +58,11 @@ public class NotificationService {
         outboxEventRepository.save(outbox);
 
         return notification;
+    }
+
+    public Notification getNotification(Tenant tenant, UUID id) {
+        return notificationRepository.findByIdAndTenant_Id(id, tenant.getId())
+                .orElseThrow(() -> new IllegalArgumentException("Notification not found: " + id));
     }
 
     private String buildPayload(Notification notification) {
