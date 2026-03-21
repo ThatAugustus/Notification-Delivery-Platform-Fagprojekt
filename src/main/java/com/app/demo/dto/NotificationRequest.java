@@ -10,5 +10,5 @@ public class NotificationRequest {
     @NotBlank private String recipient;
     @NotBlank private String content;
     private String subject;        // optional
-    private String idempotencyKey; // optional if provided, duplicate requests are ignored
+    @NotBlank private String idempotencyKey;
 }

@@ -37,7 +37,7 @@ public class Notification {
     @JoinColumn(name = "tenant_id", nullable = false)
     private Tenant tenant;
 
-    @Column(name = "idempotency_key")
+    @Column(name = "idempotency_key", nullable = false)
     private String idempotencyKey;
 
     @Enumerated(EnumType.STRING)

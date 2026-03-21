@@ -22,7 +22,7 @@ CREATE TABLE api_keys (
 CREATE TABLE notifications (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
-    idempotency_key VARCHAR(255),
+    idempotency_key NOT NULL VARCHAR(255), 
     channel VARCHAR(50) NOT NULL,
     recipient VARCHAR(255) NOT NULL,
     subject VARCHAR(255),
