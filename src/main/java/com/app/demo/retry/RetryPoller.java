@@ -34,6 +34,7 @@ public class RetryPoller {
         this.objectMapper = objectMapper;
     }
 
+    // Runs every 2 seconds to find and re-queue notifications that are due for retry
     @Scheduled(fixedDelay = 2000)
     @Transactional
     public void pollAndRetry() {
@@ -64,6 +65,7 @@ public class RetryPoller {
         }
     }
 
+    // Helper method to build the JSON payload for the retry message
     private String buildPayload(Notification notification) {
         try {
             String fromEmail = notification.getTenant().getDefaultFromEmail() != null

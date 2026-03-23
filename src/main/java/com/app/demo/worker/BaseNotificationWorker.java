@@ -62,7 +62,7 @@ public abstract class BaseNotificationWorker {
             // 3. Delegate the actual delivery to the specific channel worker
             deliver(payload, notification);
 
-            // 4. Success — Record it
+            // 4. Success, Record it
             long duration = System.currentTimeMillis() - startTime;
             notification.setStatus(NotificationStatus.DELIVERED);
             notificationRepository.save(notification);
@@ -88,17 +88,17 @@ public abstract class BaseNotificationWorker {
 
                 notification.setRetryCount(notification.getRetryCount() + 1);
 
-                // ── THE KEY DECISION: retry or give up? ──
+                // if any retry left then schedule a retry, otherwise mark as permanently failed
                 if (retryPolicy.hasRetriesLeft(notification.getRetryCount(), notification.getMaxRetries())) {
-                    // Schedule a retry — the RetryPoller will pick this up later
-                    Instant nextRetry = retryPolicy.calculateNextRetryAt(notification.getRetryCount() - 1);
+                    // Schedule a retry and then the RetryPoller will pick this up later
+                    Instant nextRetry = retryPolicy.calculateNextRetryAt(notification.getRetryCount() - 1); // -1 because we already incremented the retry count above. We want to start with the initial delay for the first retry, not the second.
                     notification.setStatus(NotificationStatus.RETRY_SCHEDULED);
                     notification.setNextRetryAt(nextRetry);
 
                     log.warn("Scheduling retry #{} for notification {} at {}",
                             notification.getRetryCount(), notification.getId(), nextRetry);
                 } else {
-                    // No retries left — this notification is permanently failed
+                    // No retries left, mark this notification as permanently failed
                     notification.setStatus(NotificationStatus.FAILED);
                     notification.setNextRetryAt(null);
 

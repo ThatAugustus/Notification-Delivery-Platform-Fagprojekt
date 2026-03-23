@@ -14,6 +14,8 @@ public interface NotificationRepository extends JpaRepository<Notification, UUID
     Optional<Notification> findByTenant_IdAndIdempotencyKey(UUID tenantId, String idempotencyKey);
     Optional<Notification> findByIdAndTenant_Id(UUID id, UUID tenantId);
 
+    // JPA doesn't support "SKIP LOCKED" with method names, so we write a query ourselves for this one
+    // SKIP LOCKED eliminates race conditions. This is why we chose postgres.
     @Query(value = """
         SELECT * FROM notifications
         WHERE status = 'RETRY_SCHEDULED'
