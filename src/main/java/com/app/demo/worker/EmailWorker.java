@@ -9,6 +9,7 @@ import com.app.demo.email.EmailProvider;
 import com.app.demo.model.Notification;
 import com.app.demo.repository.DeliveryAttemptRepository;
 import com.app.demo.repository.NotificationRepository;
+import com.app.demo.retry.RetryPolicy;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 @Component
@@ -20,10 +21,11 @@ public class EmailWorker extends BaseNotificationWorker {
             ObjectMapper objectMapper,
             NotificationRepository notificationRepository,
             DeliveryAttemptRepository deliveryAttemptRepository,
+            RetryPolicy retryPolicy,
             EmailProvider emailProvider) {
         
         // Pass shared dependencies up to the parent
-        super(objectMapper, notificationRepository, deliveryAttemptRepository);
+        super(objectMapper, notificationRepository, deliveryAttemptRepository, retryPolicy);
         
         // Keep Email-specific dependencies here
         this.emailProvider = emailProvider;
