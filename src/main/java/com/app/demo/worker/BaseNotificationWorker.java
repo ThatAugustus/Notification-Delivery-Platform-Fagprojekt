@@ -1,5 +1,7 @@
 package com.app.demo.worker;
 
+import java.time.Instant;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.amqp.core.Message;
@@ -11,6 +13,7 @@ import com.app.demo.model.enums.DeliveryAttemptStatus;
 import com.app.demo.model.enums.NotificationStatus;
 import com.app.demo.repository.DeliveryAttemptRepository;
 import com.app.demo.repository.NotificationRepository;
+import com.app.demo.retry.RetryPolicy;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 public abstract class BaseNotificationWorker {
@@ -20,14 +23,17 @@ public abstract class BaseNotificationWorker {
     protected final ObjectMapper objectMapper;
     protected final NotificationRepository notificationRepository;
     protected final DeliveryAttemptRepository deliveryAttemptRepository;
+    protected final RetryPolicy retryPolicy;
 
     public BaseNotificationWorker(
             ObjectMapper objectMapper,
             NotificationRepository notificationRepository,
-            DeliveryAttemptRepository deliveryAttemptRepository) {
+            DeliveryAttemptRepository deliveryAttemptRepository,
+            RetryPolicy retryPolicy) {
         this.objectMapper = objectMapper;
         this.notificationRepository = notificationRepository;
         this.deliveryAttemptRepository = deliveryAttemptRepository;
+        this.retryPolicy = retryPolicy;
     }
 
     /**
@@ -68,20 +74,39 @@ public abstract class BaseNotificationWorker {
             attempt.setErrorMessage(null);
             attempt.setDurationMs(duration);
 
+
             deliveryAttemptRepository.save(attempt);
 
-            log.info("✅ Notification delivered successfully in {}ms to {}", duration, payload.getRecipient());
+            log.info("Notification delivered successfully in {}ms to {}", duration, payload.getRecipient());
 
         } catch (Exception e) {
             long duration = System.currentTimeMillis() - startTime;
-            log.error("❌ Failed to send notification", e);
+            log.error("Failed to send notification", e);
 
             // 5. Failure — Record it
             if (notification != null) {
-                notification.setStatus(NotificationStatus.FAILED);
-                notification.setRetryCount(notification.getRetryCount() + 1);
-                notificationRepository.save(notification);
 
+                notification.setRetryCount(notification.getRetryCount() + 1);
+
+                // ── THE KEY DECISION: retry or give up? ──
+                if (retryPolicy.hasRetriesLeft(notification.getRetryCount(), notification.getMaxRetries())) {
+                    // Schedule a retry — the RetryPoller will pick this up later
+                    Instant nextRetry = retryPolicy.calculateNextRetryAt(notification.getRetryCount() - 1);
+                    notification.setStatus(NotificationStatus.RETRY_SCHEDULED);
+                    notification.setNextRetryAt(nextRetry);
+
+                    log.warn("Scheduling retry #{} for notification {} at {}",
+                            notification.getRetryCount(), notification.getId(), nextRetry);
+                } else {
+                    // No retries left — this notification is permanently failed
+                    notification.setStatus(NotificationStatus.FAILED);
+                    notification.setNextRetryAt(null);
+
+                    log.error("Notification {} permanently FAILED after {} attempts",
+                            notification.getId(), notification.getRetryCount());
+                }
+
+                notificationRepository.save(notification);
                 DeliveryAttempt attempt = new DeliveryAttempt();
                 attempt.setNotification(notification);
                 attempt.setAttemptNumber(notification.getRetryCount());

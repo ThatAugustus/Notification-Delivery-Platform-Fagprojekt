@@ -7,5 +7,5 @@ public enum NotificationStatus {
     DELIVERED,
     FAILED,
     //DEAD_LETTERED, // not part of MVP
-    //RETRY_SCHEDULED // not part of MVP
+    RETRY_SCHEDULED
 }
