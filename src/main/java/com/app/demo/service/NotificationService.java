@@ -1,5 +1,7 @@
 package com.app.demo.service;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -17,6 +19,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 @Service
 public class NotificationService {
+
+    private static final Logger log = LoggerFactory.getLogger(NotificationService.class);
 
     private final NotificationRepository notificationRepository;
     private final OutboxEventRepository outboxEventRepository;
@@ -38,7 +42,9 @@ public class NotificationService {
             var existing = notificationRepository
                     .findByTenant_IdAndIdempotencyKey(tenant.getId(), request.getIdempotencyKey());
             if (existing.isPresent()) {
-                return existing.get(); // same request, return what we already created
+                log.info("Idempotency hit: key={} returning existing notification={}",
+                        request.getIdempotencyKey(), existing.get().getId());
+                return existing.get();
             }
         }
 
