@@ -44,7 +44,6 @@ public class Tenant {
         this.name = name; 
     }
 
-
     @PreUpdate
     protected void onUpdate() {
         this.updatedAt = Instant.now();
