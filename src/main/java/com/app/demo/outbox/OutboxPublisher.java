@@ -32,14 +32,16 @@ public class OutboxPublisher {
     }
 
     @Scheduled(fixedDelay = 1000)
-    @Transactional  // keeps the JPA session open for the entire poll cycle
+    @Transactional
     public void pollAndPublish() {
         List<OutboxEvent> pending = outboxEventRepository.findByPublishedFalse();
         for (OutboxEvent event : pending) {
             try {
+                String routingKey = "notification." + event.getNotification().getChannel().name().toLowerCase();
+
                 rabbitTemplate.convertAndSend(
                         "notifications-exchange",
-                        "notification.email",
+                        routingKey,
                         event.getPayload()
                 );
                 event.markPublished();
@@ -49,8 +51,8 @@ public class OutboxPublisher {
                 notification.setStatus(NotificationStatus.QUEUED);
                 notificationRepository.save(notification);
 
-                log.info("Published outbox event {} for notification {}",
-                        event.getId(), notification.getId());
+                log.info("Published outbox event {} for notification {} via {}",
+                        event.getId(), notification.getId(), routingKey);
             } catch (Exception e) {
                 event.setRetryCount(event.getRetryCount() + 1);
                 event.setLastError(e.getMessage());

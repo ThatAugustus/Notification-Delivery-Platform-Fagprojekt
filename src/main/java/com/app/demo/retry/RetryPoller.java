@@ -78,7 +78,9 @@ public class RetryPoller {
                     fromEmail,
                     notification.getRecipient(),
                     notification.getSubject(),
-                    notification.getBody()
+                    notification.getBody(),
+                    notification.getWebhookUrl(),
+                    notification.getTenant().getWebhookSecret()
             );
             return objectMapper.writeValueAsString(payload);
         } catch (Exception e) {

@@ -32,6 +32,9 @@ public class Tenant {
     @Column(name = "default_from_email")
     private String defaultFromEmail;
 
+    @Column(name = "webhook_secret")
+    private String webhookSecret;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt = Instant.now();
 

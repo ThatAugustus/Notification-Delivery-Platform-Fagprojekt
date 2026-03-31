@@ -53,6 +53,10 @@ public class Notification {
     @Column(nullable = false, columnDefinition = "TEXT")
     private String body;
 
+    @Column(name = "webhook_url", length = 2048)
+    private String webhookUrl;
+
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private NotificationStatus status = NotificationStatus.ACCEPTED;

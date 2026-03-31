@@ -18,4 +18,6 @@ public class NotificationPayload {
     private String recipient;
     private String subject;
     private String content;
+    private String webhookUrl;
+    private String webhookSecret;
 }

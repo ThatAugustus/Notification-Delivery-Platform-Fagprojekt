@@ -1,11 +1,11 @@
 package com.app.demo.service;
 
+import java.util.UUID;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.UUID;
 
 import com.app.demo.dto.NotificationPayload;
 import com.app.demo.dto.NotificationRequest;
@@ -48,6 +48,12 @@ public class NotificationService {
             }
         }
 
+        // Validate webhook requests have a URL
+        if (request.getChannel().equals("WEBHOOK") &&
+                (request.getWebhookUrl() == null || request.getWebhookUrl().isBlank())) {
+            throw new IllegalStateException("webhookUrl is required for WEBHOOK channel");
+        }
+
         // 1. Create and save the notification
         Notification notification = new Notification(
                 tenant,
@@ -57,6 +63,7 @@ public class NotificationService {
                 request.getContent()
         );
         notification.setIdempotencyKey(request.getIdempotencyKey());
+        notification.setWebhookUrl(request.getWebhookUrl());
         notificationRepository.save(notification);
 
         // 2. Create and save the outbox event (same transaction)
@@ -81,7 +88,9 @@ public class NotificationService {
                             : "noreply@notificationplatform.com",
                     notification.getRecipient(),
                     notification.getSubject(),
-                    notification.getBody()
+                    notification.getBody(),
+                    notification.getWebhookUrl(),
+                    notification.getTenant().getWebhookSecret()
             );
             return objectMapper.writeValueAsString(payload);
         } catch (Exception e) {

@@ -11,4 +11,6 @@ public class NotificationRequest {
     @NotBlank private String content;
     private String subject;        // optional
     @NotBlank private String idempotencyKey;
+    private String webhookUrl;
+
 }

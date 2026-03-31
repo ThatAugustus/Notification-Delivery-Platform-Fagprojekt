@@ -16,6 +16,7 @@ public class RabbitMQConfig {
         return new TopicExchange("notifications-exchange");
     }
 
+    // Email queue
     // The queue where email messages wait to be consumed
     @Bean
     public Queue emailQueue() {
@@ -30,5 +31,20 @@ public class RabbitMQConfig {
                 .bind(emailQueue)
                 .to(notificationsExchange)
                 .with("notification.email");
+    }
+
+
+    // Webhook queue
+    @Bean
+    public Queue webhookQueue() {
+        return new Queue("webhook-queue", true);
+    }
+
+    @Bean
+    public Binding webhookBinding(Queue webhookQueue, TopicExchange notificationsExchange) {
+        return BindingBuilder
+                .bind(webhookQueue)
+                .to(notificationsExchange)
+                .with("notification.webhook");
     }
 }
