@@ -25,25 +25,40 @@ public class NotificationService {
     private final NotificationRepository notificationRepository;
     private final OutboxEventRepository outboxEventRepository;
     private final ObjectMapper objectMapper;
+    private final RedisIdempotencyCache idempotencyCache;
 
     public NotificationService(NotificationRepository notificationRepository,
                                OutboxEventRepository outboxEventRepository,
-                               ObjectMapper objectMapper) {
+                               ObjectMapper objectMapper,
+                               RedisIdempotencyCache idempotencyCache) {
         this.notificationRepository = notificationRepository;
         this.outboxEventRepository = outboxEventRepository;
         this.objectMapper = objectMapper;
+        this.idempotencyCache = idempotencyCache;
     }
 
     @Transactional
     public Notification createNotification(Tenant tenant, NotificationRequest request) {
 
-        // Idempotency check
+        // Idempotency check, Redis first, then PostgreSQL
         if (request.getIdempotencyKey() != null) {
+
+            // Check Redis 
+            UUID cachedId = idempotencyCache.get(tenant.getId(), request.getIdempotencyKey());
+            if (cachedId != null) {
+                log.info("Idempotency hit (Redis): key={} returning existing notification={}",
+                        request.getIdempotencyKey(), cachedId);
+                return notificationRepository.findById(cachedId).orElse(null);
+            }
+
+            // Check PostgreSQL
             var existing = notificationRepository
                     .findByTenant_IdAndIdempotencyKey(tenant.getId(), request.getIdempotencyKey());
             if (existing.isPresent()) {
-                log.info("Idempotency hit: key={} returning existing notification={}",
+                log.info("Idempotency hit (DB): key={} returning existing notification={}",
                         request.getIdempotencyKey(), existing.get().getId());
+                // Store in Redis so next time it's fast
+                idempotencyCache.put(tenant.getId(), request.getIdempotencyKey(), existing.get().getId());
                 return existing.get();
             }
         }
@@ -54,7 +69,7 @@ public class NotificationService {
             throw new IllegalStateException("webhookUrl is required for WEBHOOK channel");
         }
 
-        // 1. Create and save the notification
+        // Create and save the notification
         Notification notification = new Notification(
                 tenant,
                 NotificationChannel.valueOf(request.getChannel()),
@@ -66,9 +81,14 @@ public class NotificationService {
         notification.setWebhookUrl(request.getWebhookUrl());
         notificationRepository.save(notification);
 
-        // 2. Create and save the outbox event (same transaction)
+        // Create and save the outbox event (same transaction)
         OutboxEvent outbox = new OutboxEvent(notification, buildPayload(notification));
         outboxEventRepository.save(outbox);
+
+        // Cache the idempotency key in Redis for fast future lookups
+        if (request.getIdempotencyKey() != null) {
+            idempotencyCache.put(tenant.getId(), request.getIdempotencyKey(), notification.getId());
+        }
 
         return notification;
     }
