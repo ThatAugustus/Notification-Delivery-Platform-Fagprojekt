@@ -42,6 +42,56 @@ docker compose up -d        # Start PostgreSQL, RabbitMQ, Redis
 ./gradlew test               # Unit + integration tests
 ```
 
+### Testing tools
+
+#### local host
+
+```bash
+# Swagger UI
+http://localhost:8080
+
+# Mailpit UI
+http://localhost:8025
+
+# RabbitMQ UI
+http://localhost:15673
+```
+
+
+
+#### API Key
+
+```bash
+my-test-key-123
+```
+
+
+
+#### POST requests
+```bash
+# Send a test email
+curl -X POST http://localhost:8080/api/v1/notifications \
+  -H "X-API-Key: my-test-key-123" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "channel": "email",
+    "recipient": "[EMAIL_ADDRESS]",
+    "subject": "Test Email",
+    "content": "This is a test email."
+  }'
+
+# Send a test webhook
+curl -X POST http://localhost:8080/api/v1/notifications \
+  -H "X-API-Key: my-test-key-123" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "channel": "webhook",
+    "recipient": "https://example.com/webhook",
+    "subject": "Test Webhook",
+    "content": "This is a test webhook."
+  }'
+```
+
 ## Team
 
 - August Hansen
