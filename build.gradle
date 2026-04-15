@@ -58,6 +58,15 @@ dependencies {
 
 	// ── Structured Logging ──
 	implementation 'net.logstash.logback:logstash-logback-encoder:8.0'
+
+
+	// ── ADDED: Testing with real containers ──
+	testImplementation platform('org.testcontainers:testcontainers-bom:1.21.3')
+	testImplementation 'org.testcontainers:postgresql'
+	testImplementation 'org.testcontainers:rabbitmq'
+	testImplementation 'org.testcontainers:junit-jupiter'
+	testImplementation 'org.awaitility:awaitility:4.2.2'
+	testImplementation 'org.wiremock:wiremock-standalone:3.10.0'
 }
 
 generateJava {
@@ -66,6 +75,14 @@ generateJava {
 	generateClient = true
 }
 
+tasks.named('generateJava') {
+	onlyIf { file("${projectDir}/src/main/resources/graphql-client").exists() }
+}
+
 tasks.named('test') {
 	useJUnitPlatform()
+}
+
+tasks.named('processTestAot') {
+	enabled = false
 }
