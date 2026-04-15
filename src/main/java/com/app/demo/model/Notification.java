@@ -41,7 +41,7 @@ public class Notification {
     private String idempotencyKey;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 20)
+    @Column(nullable = false, length = 50)
     private NotificationChannel channel;
 
     @Column(nullable = false, length = 255)
@@ -58,7 +58,7 @@ public class Notification {
 
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 20)
+    @Column(nullable = false, length = 50)
     private NotificationStatus status = NotificationStatus.ACCEPTED;
 
     @Column(name = "retry_count", nullable = false)

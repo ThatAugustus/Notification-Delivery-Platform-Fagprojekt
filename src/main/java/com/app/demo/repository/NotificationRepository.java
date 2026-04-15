@@ -25,4 +25,14 @@ public interface NotificationRepository extends JpaRepository<Notification, UUID
         FOR UPDATE SKIP LOCKED
         """, nativeQuery = true)
     List<Notification> findRetryReady(@Param("batchSize") int batchSize);
+
+
+    @Query(value = """
+        SELECT * FROM notifications
+        WHERE status IN ('QUEUED', 'PROCESSING')
+            AND updated_at < NOW() - CAST(:thresholdMinutes || ' minutes' AS INTERVAL)
+        LIMIT :batchSize
+        FOR UPDATE SKIP LOCKED
+        """, nativeQuery = true)
+    List<Notification> findStale(@Param("thresholdMinutes") int thresholdMinutes, @Param("batchSize") int batchSize);
 }

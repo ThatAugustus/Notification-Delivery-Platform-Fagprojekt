@@ -3,6 +3,7 @@ package com.app.demo.config;
 import org.springframework.amqp.core.Binding;
 import org.springframework.amqp.core.BindingBuilder;
 import org.springframework.amqp.core.Queue;
+import org.springframework.amqp.core.QueueBuilder;
 import org.springframework.amqp.core.TopicExchange;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -16,11 +17,31 @@ public class RabbitMQConfig {
         return new TopicExchange("notifications-exchange");
     }
 
+    @Bean
+    public TopicExchange deadLetterExchange() {
+        return new TopicExchange("dead-letter-exchange");
+    }
+ 
+    @Bean
+    public Queue deadLetterQueue() {
+        return new Queue("dead-letter-queue", true);
+    }
+ 
+    @Bean
+    public Binding deadLetterBinding(Queue deadLetterQueue, TopicExchange deadLetterExchange) {
+        return BindingBuilder
+                .bind(deadLetterQueue)
+                .to(deadLetterExchange)
+                .with("#"); // catch-all: any routing key
+    }
+
     // Email queue
     // The queue where email messages wait to be consumed
     @Bean
     public Queue emailQueue() {
-        return new Queue("email-queue", true); // true = durable (survives RabbitMQ restart)
+        return QueueBuilder.durable("email-queue")
+                .withArgument("x-dead-letter-exchange", "dead-letter-exchange")
+                .build();
     }
 
     // The binding — tells the exchange: "messages with routing key
@@ -37,7 +58,9 @@ public class RabbitMQConfig {
     // Webhook queue
     @Bean
     public Queue webhookQueue() {
-        return new Queue("webhook-queue", true);
+        return QueueBuilder.durable("webhook-queue")
+                .withArgument("x-dead-letter-exchange", "dead-letter-exchange")
+                .build();
     }
 
     @Bean

@@ -39,7 +39,7 @@ public class DeliveryAttempt {
     private int attemptNumber;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 20)
+    @Column(nullable = false, length = 50)
     private DeliveryAttemptStatus status;
 
     @Column(name = "error_message", columnDefinition = "TEXT")
