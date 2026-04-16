@@ -12,10 +12,10 @@ import com.app.demo.model.ApiKey;
 import com.app.demo.model.Tenant;
 import com.app.demo.repository.ApiKeyRepository;
 
-@Service
+@Service // Spring service bean
 public class ApiKeyService {
 
-    private final ApiKeyRepository apiKeyRepository;
+    private final ApiKeyRepository apiKeyRepository; // The repository handles DB queries. Spring injects it via the constructor.
 
     public ApiKeyService(ApiKeyRepository apiKeyRepository) {
         this.apiKeyRepository = apiKeyRepository;
