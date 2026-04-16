@@ -8,12 +8,15 @@ import java.util.concurrent.TimeUnit;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
@@ -24,16 +27,17 @@ import com.app.demo.repository.DeliveryAttemptRepository;
 import com.app.demo.repository.NotificationRepository;
 import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.client.WireMock;
-import com.github.tomakehurst.wiremock.stubbing.Scenario;
-
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.post;
 import static com.github.tomakehurst.wiremock.client.WireMock.postRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.awaitility.Awaitility.await;
+import com.github.tomakehurst.wiremock.stubbing.Scenario;
 
 class NotificationFlowTest extends BaseIntegrationTest {
+
+    private static final ParameterizedTypeReference<Map<String, Object>> MAP_TYPE =
+            new ParameterizedTypeReference<>() {
+            };
 
     @Autowired
     private NotificationRepository notificationRepository;
@@ -84,7 +88,7 @@ class NotificationFlowTest extends BaseIntegrationTest {
                 "/api/v1/notifications",
                 HttpMethod.POST,
                 new HttpEntity<>(body, authHeaders()),
-                Map.class
+                MAP_TYPE
         );
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
         UUID notificationId = UUID.fromString(response.getBody().get("id").toString());
@@ -126,13 +130,13 @@ class NotificationFlowTest extends BaseIntegrationTest {
                 "/api/v1/notifications",
                 HttpMethod.POST,
                 new HttpEntity<>(body, authHeaders()),
-                Map.class
+                MAP_TYPE
         );
         var second = restTemplate.exchange(
                 "/api/v1/notifications",
                 HttpMethod.POST,
                 new HttpEntity<>(body, authHeaders()),
-                Map.class
+                MAP_TYPE
         );
 
         assertThat(first.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
@@ -165,7 +169,7 @@ class NotificationFlowTest extends BaseIntegrationTest {
                 "/api/v1/notifications",
                 HttpMethod.POST,
                 new HttpEntity<>(body, authHeaders()),
-                Map.class
+                MAP_TYPE
         );
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
         UUID notificationId = UUID.fromString(response.getBody().get("id").toString());
@@ -218,7 +222,7 @@ class NotificationFlowTest extends BaseIntegrationTest {
                 "/api/v1/notifications",
                 HttpMethod.POST,
                 new HttpEntity<>(body, authHeaders()),
-                Map.class
+                MAP_TYPE
         );
         UUID notificationId = UUID.fromString(response.getBody().get("id").toString());
 
