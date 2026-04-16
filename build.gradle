@@ -86,3 +86,13 @@ tasks.named('test') {
 tasks.named('processTestAot') {
 	enabled = false
 }
+
+
+tasks.named('test') {
+	useJUnitPlatform()
+	testLogging {
+		events "passed", "failed", "skipped"
+		showStandardStreams = false
+		exceptionFormat = "full"
+	}
+}
