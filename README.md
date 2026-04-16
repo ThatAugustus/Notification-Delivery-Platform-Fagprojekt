@@ -74,10 +74,11 @@ curl -X POST http://localhost:8080/api/v1/notifications \
   -H "X-API-Key: my-test-key-123" \
   -H "Content-Type: application/json" \
   -d '{
-    "channel": "email",
-    "recipient": "[EMAIL_ADDRESS]",
+    "channel": "EMAIL",
+    "recipient": "test@example.com",
     "subject": "Test Email",
-    "content": "This is a test email."
+    "content": "This is a test email.",
+    "idempotencyKey": "test-001"
   }'
 
 # Send a test webhook

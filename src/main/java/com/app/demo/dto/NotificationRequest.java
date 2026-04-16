@@ -7,7 +7,7 @@ import lombok.Data;
 @Data // Lombok annotation that generates getters, setters, toString, equals, and hashCode
 public class NotificationRequest {
     //notNull / notBlank is used to validate the input
-    @NotNull private String channel; 
+    @NotBlank private String channel;
     @NotBlank private String recipient;
     @NotBlank private String content;
     private String subject;        // optional
