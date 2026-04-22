@@ -1,0 +1,35 @@
+<!-- Structured logging config.
+     Default: readable console output (for development)
+     With "json" profile: JSON output with MDC fields (for production / demo)
+
+     To switch:  java -jar app.jar  spring.profiles.active=json
+     Or in application.properties:  spring.profiles.active=json
+-->
+<configuration>
+
+    <!-- ── Default: readable console (development) ── -->
+    <!-- MDC fields (notificationId, correlationId, tenantId) are appended to each line -->
+    <springProfile name="!json">
+        <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+            <encoder>
+                <pattern>%d{HH:mm:ss.SSS} %-5level [%thread] %logger{36} - %msg [notifId=%X{notificationId} corrId=%X{correlationId} tenant=%X{tenantId}]%n</pattern>
+            </encoder>
+        </appender>
+        <root level="INFO">
+            <appender-ref ref="CONSOLE"/>
+        </root>
+    </springProfile>
+
+    <!-- ── JSON profile: structured logging (production / demo) ── -->
+    <springProfile name="json">
+        <appender name="JSON" class="ch.qos.logback.core.ConsoleAppender">
+            <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+                <!-- MDC fields are included automatically as top-level JSON keys -->
+            </encoder>
+        </appender>
+        <root level="INFO">
+            <appender-ref ref="JSON"/>
+        </root>
+    </springProfile>
+
+</configuration>

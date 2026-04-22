@@ -4,6 +4,7 @@ import java.util.List;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -18,6 +19,9 @@ import com.app.demo.repository.OutboxEventRepository;
 public class OutboxPublisher {
 
     private static final Logger log = LoggerFactory.getLogger(OutboxPublisher.class);
+    private static final int BATCH_SIZE = 50;
+
+
     private final OutboxEventRepository outboxEventRepository;
     private final NotificationRepository notificationRepository;
     private final RabbitTemplate rabbitTemplate;
@@ -34,8 +38,9 @@ public class OutboxPublisher {
     @Scheduled(fixedDelay = 1000)
     @Transactional
     public void pollAndPublish() {
-        List<OutboxEvent> pending = outboxEventRepository.findByPublishedFalse();
+        List<OutboxEvent> pending = outboxEventRepository.findUnpublishedBatch(BATCH_SIZE);
         for (OutboxEvent event : pending) {
+            MDC.put("notificationId", event.getNotification().getId().toString());
             try {
                 String routingKey = "notification." + event.getNotification().getChannel().name().toLowerCase();
 
@@ -58,6 +63,8 @@ public class OutboxPublisher {
                 event.setLastError(e.getMessage());
                 outboxEventRepository.save(event);
                 log.error("Failed to publish outbox event {}: {}", event.getId(), e.getMessage());
+            } finally {
+                MDC.remove("notificationId");
             }
         }
     }

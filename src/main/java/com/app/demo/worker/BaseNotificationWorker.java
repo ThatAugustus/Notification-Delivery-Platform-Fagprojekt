@@ -4,6 +4,7 @@ import java.time.Instant;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.amqp.AmqpRejectAndDontRequeueException;
 import org.springframework.amqp.core.Message;
 
 import com.app.demo.dto.NotificationPayload;
@@ -15,6 +16,7 @@ import com.app.demo.repository.DeliveryAttemptRepository;
 import com.app.demo.repository.NotificationRepository;
 import com.app.demo.retry.RetryPolicy;
 import com.fasterxml.jackson.databind.ObjectMapper;
+
 
 public abstract class BaseNotificationWorker {
 
@@ -116,6 +118,10 @@ public abstract class BaseNotificationWorker {
 
                 deliveryAttemptRepository.save(attempt);
             }
+                if (notification == null) {
+                    log.error("Unrecoverable message rejected to DLQ: {}", e.getMessage());
+                    throw new AmqpRejectAndDontRequeueException("Unrecoverable: " + e.getMessage(), e);
+                }
         }
     }
 
