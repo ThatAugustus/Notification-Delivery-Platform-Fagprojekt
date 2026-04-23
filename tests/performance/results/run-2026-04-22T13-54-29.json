@@ -1,0 +1,15 @@
+{
+  "timestamp": "2026-04-22T13:54:29.376Z",
+  "duration_seconds": 90.023056,
+  "vus_max": 30,
+  "throughput_rps": 144.44077526095094,
+  "latency": {
+    "avg_ms": 22.60874190571404,
+    "p95_ms": 64.34009999999996,
+    "max_ms": 428.71
+  },
+  "error_rate": 0,
+  "total_requests": 13003,
+  "notifications_accepted": 13003,
+  "notifications_rejected": 0
+}

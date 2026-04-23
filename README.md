@@ -37,6 +37,8 @@ docker compose up -d        # Start PostgreSQL, RabbitMQ, Redis
 ./gradlew bootRun            # Start the application
 ```
 
+
+
 ### Test
 ```bash
 ./gradlew test               # Unit + integration tests
@@ -44,28 +46,32 @@ docker compose up -d        # Start PostgreSQL, RabbitMQ, Redis
 
 ### Testing tools
 
-#### local host
+#### Load testing
 
 ```bash
-# Swagger UI
-http://localhost:8080
-
-# Mailpit UI
-http://localhost:8025
-
-# RabbitMQ UI
-http://localhost:15673
+tests/load/run-load-test.sh
 ```
 
+#### Compare load test runs
 
+```bash
+tests/load/compare.sh
+``` 
 
-#### API Key
+#### Resilience testing
+
+```bash
+tests/resilience/common.sh
+tests/resilience/rabbitmq-failure.sh
+tests/resilience/redis-failure.sh
+tests/resilience/run-all.sh
+```
+
+#### API Test Key
 
 ```bash
 my-test-key-123
 ```
-
-
 
 #### POST requests
 ```bash
@@ -92,6 +98,44 @@ curl -X POST http://localhost:8080/api/v1/notifications \
     "content": "This is a test webhook."
   }'
 ```
+
+### UI's
+
+
+#### Adminer (database):
+
+**Link:** http://localhost:8081
+
+**Logging in:**
+| Field    | Value                 |
+| -------- | --------------------- |
+| System   | PostgreSQL            |
+| Server   | postgres              |
+| Username | dev                   |
+| Password | dev                   |
+| Database | notification_platform |
+
+#### RabbitMQ (queues):
+
+**Link:** http://localhost:15673
+
+| Field    | Value                 |
+| -------- | --------------------- |
+| Username | dev                   |
+| Password | dev                   |
+
+#### Mailpit (emails):
+
+**Link:** http://localhost:8025
+
+#### Swagger (API documentation)
+
+**Link:** http://localhost:8080
+
+#### Actuator (health checks)
+
+**Link:** http://localhost:8080/actuator/health
+
 
 ## Team
 

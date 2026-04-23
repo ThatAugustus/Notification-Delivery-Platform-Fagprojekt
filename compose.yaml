@@ -1,6 +1,7 @@
 services:
   postgres:
     image: postgres:17
+    container_name: ndp-postgres
     ports:
       - "5432:5432"
     environment:
@@ -12,6 +13,7 @@ services:
 
   rabbitmq:
     image: rabbitmq:4-management
+    container_name: ndp-rabbitmq
     ports:
       - "5673:5672"
       - "15673:15672"
@@ -21,14 +23,40 @@ services:
 
   redis:
     image: redis:7
+    container_name: ndp-redis
     ports:
       - "6379:6379"
 
   mailpit:
     image: axllent/mailpit:latest
+    container_name: ndp-mailpit
     ports:
       - "1025:1025"
       - "8025:8025"
+
+  # Database UI — browse tables, run queries
+  adminer:
+    image: adminer:latest
+    container_name: ndp-adminer
+    ports:
+      - "8081:8080"
+    environment:
+      ADMINER_DEFAULT_SERVER: postgres
+
+  # App — only starts with: docker compose --profile full up
+  app:
+    build: .
+    container_name: ndp-app
+    profiles: ["full"]
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+    depends_on:
+      - postgres
+      - rabbitmq
+      - redis
+      - mailpit
 
 volumes:
   pgdata:

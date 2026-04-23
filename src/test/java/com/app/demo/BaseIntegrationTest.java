@@ -18,6 +18,7 @@ import org.junit.jupiter.api.BeforeEach;
 public abstract class BaseIntegrationTest {
 
     // one shared infra setup for all integration tests
+    @SuppressWarnings("resource")
     static final PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:17")
             .withDatabaseName("notification_platform")
             .withUsername("test")
