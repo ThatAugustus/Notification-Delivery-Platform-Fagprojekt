@@ -31,6 +31,16 @@ public class GlobalExceptionHandler {
         return buildError(HttpStatus.UNAUTHORIZED, ex.getMessage());
     }
 
+    @ExceptionHandler(AdminAuthenticationException.class)
+    public ResponseEntity<Map<String, Object>> handleAdminAuthError(AdminAuthenticationException ex) {
+        return buildError(HttpStatus.UNAUTHORIZED, ex.getMessage());
+    }
+
+    @ExceptionHandler(ResourceNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleResourceNotFound(ResourceNotFoundException ex) {
+        return buildError(HttpStatus.NOT_FOUND, ex.getMessage());
+    }
+
     /**
      * Handles: missing API-Key header entirely.
      * Spring throws this automatically when a required @RequestHeader is absent.
