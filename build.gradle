@@ -60,13 +60,13 @@ dependencies {
 	implementation 'net.logstash.logback:logstash-logback-encoder:8.0'
 
 
-	// ── ADDED: Testing with real containers ──
 	testImplementation platform('org.testcontainers:testcontainers-bom:1.21.3')
 	testImplementation 'org.testcontainers:postgresql'
 	testImplementation 'org.testcontainers:rabbitmq'
 	testImplementation 'org.testcontainers:junit-jupiter'
 	testImplementation 'org.awaitility:awaitility:4.2.2'
 	testImplementation 'org.wiremock:wiremock-standalone:3.10.0'
+	testImplementation 'org.apache.httpcomponents.client5:httpclient5:5.3.1'
 }
 
 generateJava {
@@ -92,7 +92,7 @@ tasks.named('test') {
 	useJUnitPlatform()
 	testLogging {
 		events "passed", "failed", "skipped"
-		showStandardStreams = false
+		showStandardStreams = true
 		exceptionFormat = "full"
 	}
 }
