@@ -25,7 +25,6 @@ public class ApiKeyService {
     // Returns the Tenant if the key exists and is active, throws otherwise.
     public Tenant resolveTenant(String rawApiKey) {
         String hash = sha256(rawApiKey);
-
         ApiKey apiKey = apiKeyRepository.findByKeyHash(hash)
                 .orElseThrow(() -> new ApiKeyAuthenticationException("Invalid API key"));
 
@@ -33,7 +32,11 @@ public class ApiKeyService {
             throw new ApiKeyAuthenticationException("API key is revoked");
         }
 
-        return apiKey.getTenant();
+        Tenant tenant = apiKey.getTenant();
+        if (tenant.isDeleted()) {
+            throw new ApiKeyAuthenticationException("Tenant is no longer active");
+        }
+        return tenant;
     }
 
     private String sha256(String input) {
