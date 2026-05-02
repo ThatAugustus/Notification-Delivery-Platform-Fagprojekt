@@ -31,12 +31,27 @@ Designed for **business-critical notifications** — password resets, fraud aler
 - Java 21
 - Docker & Docker Compose
 
-### Run
+### Run docker containers + application in terminal
 ```bash
-docker compose up -d        # Start PostgreSQL, RabbitMQ, Redis
-./gradlew bootRun            # Start the application
+docker compose up -d        # Start PostgreSQL, RabbitMQ, Redis, mailpit, adminer, prometheus, grafana
+./gradlew bootRun           # Start the application
 ```
 
+### Run full app in docker
+```bash
+# run docker and build docker app container
+docker compose --profile full up -d --build # if code changed rebuild image
+docker compose --profile full up -d         # else
+
+# view logs
+docker compose --profile full logs -f app # app only
+docker compose logs -f app          # follow app logs only
+docker compose logs -f # all logs
+docker compose logs app --tail 50   # last 50 lines of app
+
+# stop docker containers
+docker compose --profile full down 
+```
 
 
 ### Test
@@ -51,21 +66,11 @@ docker compose up -d        # Start PostgreSQL, RabbitMQ, Redis
 ```bash
 tests/load/run-load-test.sh
 ```
-
-#### Compare load test runs
-
 ```bash
-tests/load/compare.sh
-``` 
+# not done yet but works for basic tests
+tests/load/pipeline-test.sh
 
-#### Resilience testing
 
-```bash
-tests/resilience/common.sh
-tests/resilience/rabbitmq-failure.sh
-tests/resilience/redis-failure.sh
-tests/resilience/run-all.sh
-```
 
 #### API Test Key
 
@@ -135,6 +140,25 @@ curl -X POST http://localhost:8080/api/v1/notifications \
 #### Actuator (health checks)
 
 **Link:** http://localhost:8080/actuator/health
+
+#### Prometheus (metrics)
+
+**Link:** http://localhost:9090
+
+Raw metrics endpoint: http://localhost:8080/actuator/prometheus
+
+#### Grafana (dashboards)
+
+**Link:** http://localhost:3000
+
+| Field    | Value |
+| -------- | ----- |
+| Username | dev   |
+| Password | dev   |
+
+**custom grafana dashboards at:** 
+
+http://localhost:3000/d/ndp-overview/notification-delivery-platform
 
 
 ## Team

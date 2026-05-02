@@ -1,0 +1,19 @@
+# Prometheus scrape configuration for the Notification Delivery Platform.
+# Scrapes Spring Boot Actuator metrics every 5 seconds.
+
+global:
+  scrape_interval: 5s      # How often to pull metrics
+  evaluation_interval: 5s  # How often to evaluate alerting rules
+
+scrape_configs:
+  - job_name: 'notification-platform'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      # host.docker.internal = the host machine (where ./gradlew bootRun is running)
+      # Use "app:8080" instead if running with `docker compose --profile full up`
+      - targets: ['host.docker.internal:8080']
+
+  - job_name: 'node-exporter'
+    static_configs:
+      # Docker service name — Prometheus can reach it inside the Docker network
+      - targets: ['node-exporter:9100']

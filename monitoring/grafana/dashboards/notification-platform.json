@@ -1,0 +1,509 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "panels": [
+
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "id": 100,
+      "title": "🔔 HTTP API",
+      "type": "row"
+    },
+
+    {
+      "title": "Request Rate (req/s)",
+      "description": "HTTP requests per second hitting the API",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 1 },
+      "id": 1,
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "fillOpacity": 20,
+            "lineWidth": 2,
+            "spanNulls": false,
+            "drawStyle": "line",
+            "gradientMode": "scheme",
+            "pointSize": 5,
+            "showPoints": "never"
+          },
+          "unit": "reqps"
+        },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        {
+          "expr": "rate(http_server_requests_seconds_count{uri=\"/api/v1/notifications\"}[30s])",
+          "legendFormat": "{{method}} {{uri}} [{{status}}]",
+          "refId": "A"
+        }
+      ]
+    },
+
+    {
+      "title": "Request Latency (p95 / avg)",
+      "description": "API response time — p95 and average",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 1 },
+      "id": 2,
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "fillOpacity": 10,
+            "lineWidth": 2,
+            "drawStyle": "line",
+            "gradientMode": "scheme",
+            "showPoints": "never"
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, rate(http_server_requests_seconds_bucket{uri=\"/api/v1/notifications\"}[30s]))",
+          "legendFormat": "p95",
+          "refId": "A"
+        },
+        {
+          "expr": "rate(http_server_requests_seconds_sum{uri=\"/api/v1/notifications\"}[30s]) / rate(http_server_requests_seconds_count{uri=\"/api/v1/notifications\"}[30s])",
+          "legendFormat": "avg",
+          "refId": "B"
+        }
+      ]
+    },
+
+    {
+      "title": "HTTP Error Rate",
+      "description": "Percentage of non-2xx responses",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 1 },
+      "id": 3,
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "fixedColor": "red", "mode": "fixed" },
+          "custom": {
+            "fillOpacity": 20,
+            "lineWidth": 2,
+            "drawStyle": "line",
+            "showPoints": "never"
+          },
+          "unit": "percentunit",
+          "min": 0, "max": 1
+        },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        {
+          "expr": "sum(rate(http_server_requests_seconds_count{status!~\"2..\"}[30s])) / sum(rate(http_server_requests_seconds_count[30s]))",
+          "legendFormat": "error rate",
+          "refId": "A"
+        }
+      ]
+    },
+
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 9 },
+      "id": 101,
+      "title": "🐇 RabbitMQ",
+      "type": "row"
+    },
+
+    {
+      "title": "Messages Published (total)",
+      "description": "Total messages published to RabbitMQ by the outbox publisher",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 10 },
+      "id": 4,
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "fixedColor": "green", "mode": "fixed" },
+          "custom": { "fillOpacity": 20, "lineWidth": 2, "drawStyle": "line", "gradientMode": "scheme", "showPoints": "never" },
+          "unit": "ops"
+        },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        {
+          "expr": "rate(rabbitmq_published_total[30s])",
+          "legendFormat": "published/s",
+          "refId": "A"
+        },
+        {
+          "expr": "rate(rabbitmq_consumed_total[30s])",
+          "legendFormat": "consumed/s",
+          "refId": "B"
+        }
+      ]
+    },
+
+    {
+      "title": "RabbitMQ Failures",
+      "description": "Failed publishes, rejects, and unrouted messages",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 10 },
+      "id": 5,
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "fillOpacity": 10, "lineWidth": 2, "drawStyle": "line", "showPoints": "never" },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        {
+          "expr": "rate(rabbitmq_failed_to_publish_total[30s])",
+          "legendFormat": "failed to publish/s",
+          "refId": "A"
+        },
+        {
+          "expr": "rate(rabbitmq_rejected_total[30s])",
+          "legendFormat": "rejected/s",
+          "refId": "B"
+        },
+        {
+          "expr": "rate(rabbitmq_unrouted_published_total[30s])",
+          "legendFormat": "unrouted/s",
+          "refId": "C"
+        }
+      ]
+    },
+
+    {
+      "title": "RabbitMQ Connections & Channels",
+      "description": "Active connections and channels to RabbitMQ",
+      "type": "stat",
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 10 },
+      "id": 6,
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "fieldConfig": {
+        "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 5 }, { "color": "red", "value": 10 }] } },
+        "overrides": []
+      },
+      "options": { "graphMode": "area", "textMode": "auto", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "targets": [
+        { "expr": "rabbitmq_connections", "legendFormat": "connections", "refId": "A" },
+        { "expr": "rabbitmq_channels", "legendFormat": "channels", "refId": "B" }
+      ]
+    },
+
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 18 },
+      "id": 102,
+      "title": "🗄️ Database (HikariCP)",
+      "type": "row"
+    },
+
+    {
+      "title": "Connection Pool",
+      "description": "HikariCP active, idle, and pending connections",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 19 },
+      "id": 7,
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "fillOpacity": 20, "lineWidth": 2, "drawStyle": "line", "gradientMode": "scheme", "showPoints": "never" },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "expr": "hikaricp_connections_active", "legendFormat": "active", "refId": "A" },
+        { "expr": "hikaricp_connections_idle", "legendFormat": "idle", "refId": "B" },
+        { "expr": "hikaricp_connections_pending", "legendFormat": "pending (waiting)", "refId": "C" },
+        { "expr": "hikaricp_connections_max", "legendFormat": "max", "refId": "D" }
+      ]
+    },
+
+    {
+      "title": "Connection Acquire Time",
+      "description": "How long threads wait to get a DB connection from the pool",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 19 },
+      "id": 8,
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "fillOpacity": 10, "lineWidth": 2, "drawStyle": "line", "showPoints": "never" },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        {
+          "expr": "rate(hikaricp_connections_acquire_seconds_sum[30s]) / rate(hikaricp_connections_acquire_seconds_count[30s])",
+          "legendFormat": "avg acquire time",
+          "refId": "A"
+        },
+        {
+          "expr": "hikaricp_connections_acquire_seconds_max",
+          "legendFormat": "max acquire time",
+          "refId": "B"
+        }
+      ]
+    },
+
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 27 },
+      "id": 103,
+      "title": "☕ JVM",
+      "type": "row"
+    },
+
+    {
+      "title": "Heap Memory Used",
+      "description": "JVM heap memory usage",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 28 },
+      "id": 9,
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "fillOpacity": 30, "lineWidth": 2, "drawStyle": "line", "gradientMode": "scheme", "showPoints": "never" },
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "expr": "jvm_memory_used_bytes{area=\"heap\"}", "legendFormat": "used ({{id}})", "refId": "A" },
+        { "expr": "jvm_memory_max_bytes{area=\"heap\"}", "legendFormat": "max ({{id}})", "refId": "B" }
+      ]
+    },
+
+    {
+      "title": "CPU Usage",
+      "description": "Process and system CPU usage",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 28 },
+      "id": 10,
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "fillOpacity": 20, "lineWidth": 2, "drawStyle": "line", "gradientMode": "scheme", "showPoints": "never" },
+          "unit": "percentunit",
+          "min": 0, "max": 1
+        },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "expr": "process_cpu_usage", "legendFormat": "JVM process", "refId": "A" },
+        { "expr": "system_cpu_usage", "legendFormat": "system", "refId": "B" }
+      ]
+    },
+
+    {
+      "title": "Threads & GC",
+      "description": "Live threads and garbage collection pauses",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 28 },
+      "id": 11,
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "fillOpacity": 10, "lineWidth": 2, "drawStyle": "line", "showPoints": "never" },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "expr": "jvm_threads_live_threads", "legendFormat": "live threads", "refId": "A" },
+        { "expr": "rate(jvm_gc_pause_seconds_count[30s])", "legendFormat": "GC pauses/s", "refId": "B" }
+      ]
+    },
+
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 36 },
+      "id": 104,
+      "title": "⏱️ Scheduled Tasks (Outbox, Retry, Cleanup)",
+      "type": "row"
+    },
+
+    {
+      "title": "Scheduled Task Execution Rate",
+      "description": "How often the outbox publisher, retry poller, and stale cleanup run",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 37 },
+      "id": 12,
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "fillOpacity": 15, "lineWidth": 2, "drawStyle": "line", "showPoints": "never" },
+          "unit": "ops"
+        },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        {
+          "expr": "rate(tasks_scheduled_execution_seconds_count[30s])",
+          "legendFormat": "{{exception}} — {{method}}",
+          "refId": "A"
+        }
+      ]
+    },
+
+    {
+      "title": "Scheduled Task Duration",
+      "description": "Avg time each scheduled task takes per execution",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 37 },
+      "id": 13,
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "fillOpacity": 10, "lineWidth": 2, "drawStyle": "line", "showPoints": "never" },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        {
+          "expr": "rate(tasks_scheduled_execution_seconds_sum[30s]) / rate(tasks_scheduled_execution_seconds_count[30s])",
+          "legendFormat": "{{method}}",
+          "refId": "A"
+        }
+      ]
+    },
+
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 45 },
+      "id": 105,
+      "title": "🖥️ Host (Node Exporter)",
+      "type": "row"
+    },
+
+    {
+      "title": "Host CPU Usage",
+      "description": "Overall CPU utilization of the host machine",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 46 },
+      "id": 14,
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "fixedColor": "orange", "mode": "fixed" },
+          "custom": { "fillOpacity": 25, "lineWidth": 2, "drawStyle": "line", "gradientMode": "scheme", "showPoints": "never" },
+          "unit": "percentunit",
+          "min": 0, "max": 1
+        },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        {
+          "expr": "1 - avg(rate(node_cpu_seconds_total{mode=\"idle\"}[30s]))",
+          "legendFormat": "CPU usage",
+          "refId": "A"
+        }
+      ]
+    },
+
+    {
+      "title": "Host Memory Usage",
+      "description": "Physical memory usage of the host",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 46 },
+      "id": 15,
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "fillOpacity": 25, "lineWidth": 2, "drawStyle": "line", "gradientMode": "scheme", "showPoints": "never" },
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        {
+          "expr": "node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes",
+          "legendFormat": "used",
+          "refId": "A"
+        },
+        {
+          "expr": "node_memory_MemTotal_bytes",
+          "legendFormat": "total",
+          "refId": "B"
+        }
+      ]
+    },
+
+    {
+      "title": "Host Network I/O",
+      "description": "Network traffic in and out",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 46 },
+      "id": 16,
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "fillOpacity": 15, "lineWidth": 2, "drawStyle": "line", "showPoints": "never" },
+          "unit": "Bps"
+        },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        {
+          "expr": "rate(node_network_receive_bytes_total{device!=\"lo\"}[30s])",
+          "legendFormat": "rx {{device}}",
+          "refId": "A"
+        },
+        {
+          "expr": "rate(node_network_transmit_bytes_total{device!=\"lo\"}[30s])",
+          "legendFormat": "tx {{device}}",
+          "refId": "B"
+        }
+      ]
+    }
+
+  ],
+  "refresh": "5s",
+  "schemaVersion": 39,
+  "tags": ["notification-platform", "spring-boot"],
+  "templating": { "list": [] },
+  "time": { "from": "now-15m", "to": "now" },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "Notification Delivery Platform",
+  "uid": "ndp-overview",
+  "version": 1
+}

@@ -1,0 +1,15 @@
+# Auto-provision dashboards from JSON files.
+# Grafana reads this at startup and loads any JSON dashboards found in the path.
+
+apiVersion: 1
+
+providers:
+  - name: 'default'
+    orgId: 1
+    folder: ''
+    type: file
+    disableDeletion: false
+    editable: true
+    options:
+      path: /etc/grafana/dashboards
+      foldersFromFilesStructure: false

@@ -19,7 +19,7 @@ import com.app.demo.repository.OutboxEventRepository;
 public class OutboxPublisher {
 
     private static final Logger log = LoggerFactory.getLogger(OutboxPublisher.class);
-    private static final int BATCH_SIZE = 50;
+    private static final int BATCH_SIZE = 100;
 
 
     private final OutboxEventRepository outboxEventRepository;

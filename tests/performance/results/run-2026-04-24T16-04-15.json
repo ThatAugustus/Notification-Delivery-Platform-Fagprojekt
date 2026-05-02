@@ -1,0 +1,23 @@
+{
+  "timestamp": "2026-04-24T16:04:15.494Z",
+  "environment": {
+    "hostname": "augusthansen",
+    "k6_version": "k6",
+    "os": "see run-load-test.sh output",
+    "cpu": "see run-load-test.sh output",
+    "ram_gb": "see run-load-test.sh output",
+    "note": ""
+  },
+  "duration_seconds": 90.0023,
+  "vus_max": 30,
+  "throughput_rps": 135.7965296442424,
+  "latency": {
+    "avg_ms": 30.56379937817061,
+    "p95_ms": 55.49489999999999,
+    "max_ms": 406.376
+  },
+  "error_rate": 0,
+  "total_requests": 12222,
+  "notifications_accepted": 12222,
+  "notifications_rejected": 0
+}

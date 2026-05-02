@@ -43,6 +43,40 @@ services:
     environment:
       ADMINER_DEFAULT_SERVER: postgres
 
+  # Host metrics — CPU, memory, disk, network
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: ndp-node-exporter
+    ports:
+      - "9100:9100"
+
+  # Metrics — scrapes /actuator/prometheus every 5s
+  prometheus:
+    build:
+      context: ./monitoring
+      dockerfile: Dockerfile.prometheus
+    container_name: ndp-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - prometheus-data:/prometheus
+
+  # Dashboard — visualizes Prometheus data
+  grafana:
+    build:
+      context: ./monitoring
+      dockerfile: Dockerfile.grafana
+    container_name: ndp-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: dev
+      GF_SECURITY_ADMIN_PASSWORD: dev
+    volumes:
+      - grafana-data:/var/lib/grafana
+    depends_on:
+      - prometheus
+
   # App — only starts with: docker compose --profile full up
   app:
     build: .
@@ -60,3 +94,5 @@ services:
 
 volumes:
   pgdata:
+  prometheus-data:
+  grafana-data:
