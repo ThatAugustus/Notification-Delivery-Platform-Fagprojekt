@@ -17,3 +17,8 @@ scrape_configs:
     static_configs:
       # Docker service name — Prometheus can reach it inside the Docker network
       - targets: ['node-exporter:9100']
+
+  - job_name: 'rabbitmq'
+    static_configs:
+      # RabbitMQ's built-in Prometheus plugin (port 15692)
+      - targets: ['rabbitmq:15692']

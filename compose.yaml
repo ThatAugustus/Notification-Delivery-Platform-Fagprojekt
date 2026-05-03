@@ -17,9 +17,11 @@ services:
     ports:
       - "5673:5672"
       - "15673:15672"
+      - "15693:15692"   # Prometheus metrics endpoint
     environment:
       RABBITMQ_DEFAULT_USER: dev
       RABBITMQ_DEFAULT_PASS: dev
+      RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS: "-rabbitmq_prometheus return_per_object_metrics true"
 
   redis:
     image: redis:7
