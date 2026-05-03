@@ -18,6 +18,7 @@ import com.app.demo.model.Notification;
 import com.app.demo.model.Tenant;
 import com.app.demo.service.ApiKeyService;
 import com.app.demo.service.NotificationService;
+import com.app.demo.service.TenantRateLimiterService;
 
 import jakarta.validation.Valid;
 
@@ -29,12 +30,15 @@ public class NotificationController {
 
     private final NotificationService notificationService;
     private final ApiKeyService apiKeyService;
+    private final TenantRateLimiterService rateLimiterService;
 
     // Constructor injection — Spring auto-wires these dependencies when creating the controller.
     public NotificationController(NotificationService notificationService,
-                                   ApiKeyService apiKeyService) {
+                                   ApiKeyService apiKeyService,
+                                   TenantRateLimiterService rateLimiterService) {
         this.notificationService = notificationService;
         this.apiKeyService = apiKeyService;
+        this.rateLimiterService = rateLimiterService;
     }
 
     // POST /api/v1/notifications — Submit a notification for delivery.
@@ -46,6 +50,8 @@ public class NotificationController {
             @Valid @RequestBody NotificationRequest request) { 
             
         Tenant tenant = apiKeyService.resolveTenant(rawApiKey);       // Authenticate: hash key → DB lookup → get Tenant
+        rateLimiterService.assertAllowed(tenant.getId());             // Enforce per-tenant rate limit (throws RateLimitExceededException -> 429)
+        
         Notification saved = notificationService.createNotification(tenant, request);  // Save notification + outbox event
         
         // Returns 202 (Accepted) because delivery happens asynchronously — the notification is queued, not sent yet.
