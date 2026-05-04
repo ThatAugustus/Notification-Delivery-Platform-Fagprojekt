@@ -52,6 +52,19 @@ services:
     ports:
       - "9100:9100"
 
+  # Distributed tracing — receives and stores traces from OpenTelemetry
+  tempo:
+    build:
+      context: ./monitoring
+      dockerfile: Dockerfile.tempo
+    container_name: ndp-tempo
+    ports:
+      - "4318:4318"    # OTLP HTTP receiver (app sends traces here)
+      - "3200:3200"    # Tempo API (Grafana queries here)
+    command: ["-config.file=/etc/tempo.yaml"]
+    volumes:
+      - tempo-data:/var/tempo
+
   # Metrics — scrapes /actuator/prometheus every 5s
   prometheus:
     build:
@@ -98,3 +111,4 @@ volumes:
   pgdata:
   prometheus-data:
   grafana-data:
+  tempo-data:

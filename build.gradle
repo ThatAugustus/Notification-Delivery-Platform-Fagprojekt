@@ -53,9 +53,16 @@ dependencies {
 	runtimeOnly    'org.flywaydb:flyway-database-postgresql'
 	implementation 'org.springframework.boot:spring-boot-flyway'
 
+		// ── Distributed Tracing (OpenTelemetry) ──
+	implementation 'org.springframework.boot:spring-boot-starter-opentelemetry'
 
+		// ── Jackson ──
 	implementation 'org.springframework.boot:spring-boot-jackson'
+
+		// ── Redis ──
 	implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+
+		// ── Actuator ──
 	implementation 'org.springframework.boot:spring-boot-starter-actuator'
 
 	// ── Metrics & Prometheus ──
