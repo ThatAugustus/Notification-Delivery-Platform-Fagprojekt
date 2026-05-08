@@ -1,5 +1,6 @@
 package com.app.demo.worker;
 
+import io.micrometer.core.instrument.MeterRegistry;
 import org.springframework.amqp.core.Message;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.stereotype.Component;
@@ -22,10 +23,11 @@ public class EmailWorker extends BaseNotificationWorker {
             NotificationRepository notificationRepository,
             DeliveryAttemptRepository deliveryAttemptRepository,
             RetryPolicy retryPolicy,
-            EmailProvider emailProvider) {
+            EmailProvider emailProvider,
+            MeterRegistry meterRegistry) {
         
         // Pass shared dependencies up to the parent
-        super(objectMapper, notificationRepository, deliveryAttemptRepository, retryPolicy);
+        super(objectMapper, notificationRepository, deliveryAttemptRepository, retryPolicy, meterRegistry);
         
         // Keep Email-specific dependencies here
         this.emailProvider = emailProvider;
