@@ -1,12 +1,11 @@
 
 package com.app.demo;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -29,12 +28,6 @@ class TenantAdminApiTest extends BaseIntegrationTest {
     @DisplayName("Admin authentication")
     class AdminAuthTests {
 
-        // === FIX: use MAP_TYPE for auth-failure tests ===
-        // When auth fails, GlobalExceptionHandler returns an error object:
-        //   {"status": 401, "error": "Unauthorized", "message": "...", "timestamp": "..."}
-        // That's a JSON object, not a list. Trying to deserialize it as List<Map>
-        // throws a parse error BEFORE we can check the status code.
-
         @Test
         @DisplayName("Missing admin key → 401")
         void missingAdminKey_returnsUnauthorized() {
@@ -45,7 +38,7 @@ class TenantAdminApiTest extends BaseIntegrationTest {
                     "/api/v1/admin/tenants",
                     HttpMethod.GET,
                     new HttpEntity<>(headers),
-                    MAP_TYPE  // <-- changed from LIST_TYPE
+                    MAP_TYPE
             );
 
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
@@ -62,7 +55,7 @@ class TenantAdminApiTest extends BaseIntegrationTest {
                     "/api/v1/admin/tenants",
                     HttpMethod.GET,
                     new HttpEntity<>(headers),
-                    MAP_TYPE  // <-- changed from LIST_TYPE
+                    MAP_TYPE
             );
 
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
@@ -79,12 +72,11 @@ class TenantAdminApiTest extends BaseIntegrationTest {
                     "/api/v1/admin/tenants",
                     HttpMethod.GET,
                     new HttpEntity<>(headers),
-                    MAP_TYPE  // <-- changed from LIST_TYPE
+                    MAP_TYPE
             );
 
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
         }
-        // === END FIX ===
     }
 
 

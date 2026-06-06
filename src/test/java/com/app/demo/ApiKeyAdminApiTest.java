@@ -1,11 +1,10 @@
 package com.app.demo;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -44,12 +43,10 @@ class ApiKeyAdminApiTest extends BaseIntegrationTest {
                     MAP_TYPE
             );
 
-            // === FIX: show actual response body on failure ===
             assertThat(response.getStatusCode())
                     .as("Expected 201 Created, got: %s with body: %s",
                             response.getStatusCode(), response.getBody())
                     .isEqualTo(HttpStatus.CREATED);
-            // === END FIX ===
 
             assertThat(response.getBody()).containsKey("rawKey");
             assertThat(response.getBody().get("rawKey")).asString().startsWith("ndp_");
@@ -211,7 +208,6 @@ class ApiKeyAdminApiTest extends BaseIntegrationTest {
                 MAP_TYPE
         );
 
-        // === FIX: fail with diagnostic info instead of silent NPE ===
         if (!response.getStatusCode().is2xxSuccessful()) {
             throw new AssertionError("Failed to create tenant. Status: " + response.getStatusCode()
                     + " Body: " + response.getBody());
@@ -221,7 +217,6 @@ class ApiKeyAdminApiTest extends BaseIntegrationTest {
             throw new AssertionError("Tenant response missing 'id' field. Body: " + response.getBody());
         }
         return id.toString();
-        // === END FIX ===
     }
 
     private String createKey(String tenantId, String name) {
@@ -236,7 +231,6 @@ class ApiKeyAdminApiTest extends BaseIntegrationTest {
                 MAP_TYPE
         );
 
-        // === FIX: surface actual server error instead of NPE ===
         if (!response.getStatusCode().is2xxSuccessful()) {
             throw new AssertionError("Failed to create API key for tenant " + tenantId
                     + ". Status: " + response.getStatusCode()
@@ -247,7 +241,6 @@ class ApiKeyAdminApiTest extends BaseIntegrationTest {
             throw new AssertionError("API key response missing 'rawKey' field. Body: " + response.getBody());
         }
         return rawKey.toString();
-        // === END FIX ===
     }
 
     private String findKeyIdFor(String tenantId) {

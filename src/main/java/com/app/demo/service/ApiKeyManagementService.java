@@ -1,9 +1,3 @@
-// ============================================================================
-// PLACE IN: src/main/java/com/app/demo/service/ApiKeyManagementService.java
-// ============================================================================
-//
-// Handles key creation (raw key → hashed storage) and revocation.
-// Reuses the same SHA-256 algorithm as ApiKeyService for consistency.
 
 package com.app.demo.service;
 
@@ -32,7 +26,6 @@ public class ApiKeyManagementService {
 
     private static final Logger log = LoggerFactory.getLogger(ApiKeyManagementService.class);
 
-    // "notification delivery platform" — pattern similar to Stripe's "sk_live_"
     private static final String KEY_PREFIX = "ndp_";
     private static final int RANDOM_BYTES = 24; // 192 bits of entropy before encoding
     private static final int DISPLAY_PREFIX_LENGTH = 8;
@@ -67,7 +60,6 @@ public class ApiKeyManagementService {
     }
 
     public List<ApiKey> listForTenant(UUID tenantId) {
-        // Ensure tenant exists and is active — otherwise return 404
         tenantManagementService.getActive(tenantId);
         return apiKeyRepository.findAllByTenant_Id(tenantId);
     }
@@ -89,7 +81,6 @@ public class ApiKeyManagementService {
         log.info("Revoked API key: id={} tenant={}", keyId, tenantId);
     }
 
-    // Generate a key like "ndp_<base64url>" — recognizable prefix + high entropy.
     private String generateRawKey() {
         byte[] bytes = new byte[RANDOM_BYTES];
         secureRandom.nextBytes(bytes);

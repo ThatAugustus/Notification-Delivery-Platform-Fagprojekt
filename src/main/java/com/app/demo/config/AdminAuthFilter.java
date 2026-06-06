@@ -66,9 +66,6 @@ public class AdminAuthFilter extends OncePerRequestFilter {
         chain.doFilter(request, response);
     }
 
-    // === FIX: write 401 response directly instead of throwing ===
-    // Filters run outside @RestControllerAdvice scope. Throwing here
-    // propagates to the servlet container and becomes a generic 500.
     private void writeUnauthorized(HttpServletResponse response, String message) throws IOException {
         response.setStatus(HttpStatus.UNAUTHORIZED.value());
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
