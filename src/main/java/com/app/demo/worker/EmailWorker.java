@@ -35,13 +35,12 @@ public class EmailWorker extends BaseNotificationWorker {
 
     @RabbitListener(queues = "email-queue")
     public void listen(Message message) {
-        // we let the parent class do the hard work of parsing JSON and updating databases
+        // parent class handles parsing JSON and updating database
         super.processMessage(message);
     }
 
     @Override
     protected void deliver(NotificationPayload payload, Notification notification) throws Exception {
-        // THIS is the only thing the EmailWorker actually has to do!
         String from = payload.getSenderEmail() != null ? payload.getSenderEmail() : "noreply@notificationplatform.com";
         String to = payload.getRecipient();
         String subject = payload.getSubject() != null ? payload.getSubject() : "No Subject";

@@ -6,7 +6,7 @@ import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.slf4j.MDC;
+import org.slf4j.MDC; // Mapped Diagnostic Context - used for structured logging across threads
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -41,9 +41,9 @@ public class OutboxPublisher {
     }
 
     @Scheduled(fixedDelay = 1000) // 1000ms = 1 second.
-    @Transactional
+    @Transactional // spring handles the db transaction, ensuring atomicity
     public void pollAndPublish() {
-        List<OutboxEvent> pending = outboxEventRepository.findUnpublishedBatch(BATCH_SIZE);
+        List<OutboxEvent> pending = outboxEventRepository.findUnpublishedBatch(BATCH_SIZE); // graps batch of unpublished events from DB into a list 
         for (OutboxEvent event : pending) {
             MDC.put("notificationId", event.getNotification().getId().toString());
             try {
