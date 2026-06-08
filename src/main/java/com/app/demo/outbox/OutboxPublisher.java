@@ -38,7 +38,7 @@ public class OutboxPublisher {
     @Scheduled(fixedDelay = 1000)
     @Transactional
     public void pollAndPublish() {
-        List<OutboxEvent> pending = outboxEventRepository.findUnpublishedBatch(BATCH_SIZE);
+        List<OutboxEvent> pending = outboxEventRepository.findUnpublishedBatch(BATCH_SIZE); // graps batch of unpublished events from DB into a list 
         for (OutboxEvent event : pending) {
             MDC.put("notificationId", event.getNotification().getId().toString());
             try {
