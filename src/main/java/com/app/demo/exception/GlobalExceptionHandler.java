@@ -6,6 +6,7 @@ import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -21,6 +22,28 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 public class GlobalExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+
+    /**
+     * Handles: tenant exceeded their rate limit.
+     * The TenantRateLimiterService throws this when a tenant has used up all their tokens.
+     * Returns 429 Too Many Requests, with a "Retry-After" header indicating when they can try again.
+     */
+    @ExceptionHandler(RateLimitExceededException.class)
+    public ResponseEntity<Map<String, Object>> handleRateLimit(RateLimitExceededException ex) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("Retry-After", String.valueOf(ex.getRetryAfterSeconds()));
+
+        return ResponseEntity
+                .status(HttpStatus.TOO_MANY_REQUESTS)
+                .headers(headers)
+                .body(Map.of(
+                        "status", 429,
+                        "error", "Too Many Requests",
+                        "message", ex.getMessage(),
+                        "retryAfterSeconds", ex.getRetryAfterSeconds(),
+                        "timestamp", Instant.now().toString()
+                ));
+    }
 
     /**
      * Handles: invalid or revoked API key.
