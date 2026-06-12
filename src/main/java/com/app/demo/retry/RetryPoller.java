@@ -78,7 +78,7 @@ public class RetryPoller {
         try {
             String fromEmail = notification.getTenant().getDefaultFromEmail() != null
                     ? notification.getTenant().getDefaultFromEmail()
-                    : "noreply@notificationplatform.com";
+                    : "noreply@notificationplatform.com"; // TODO: use real default email, with domain we own.
 
             NotificationPayload payload = new NotificationPayload(
                     notification.getId(),

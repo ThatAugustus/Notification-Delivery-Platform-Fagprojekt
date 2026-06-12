@@ -43,7 +43,8 @@ public class OutboxPublisher {
     @Scheduled(fixedDelay = 1000) // 1000ms = 1 second.
     @Transactional // spring handles the db transaction, ensuring atomicity
     public void pollAndPublish() {
-        List<OutboxEvent> pending = outboxEventRepository.findUnpublishedBatch(BATCH_SIZE); // graps batch of unpublished events from DB into a list 
+        // grabs a batch of unpublished events from DB into a list
+        List<OutboxEvent> pending = outboxEventRepository.findUnpublishedBatch(BATCH_SIZE);
         for (OutboxEvent event : pending) {
             MDC.put("notificationId", event.getNotification().getId().toString());
             try {
@@ -56,7 +57,7 @@ public class OutboxPublisher {
                 );
                 event.markPublished();
                 outboxEventRepository.save(event);
-                publishedCounter.increment();
+                publishedCounter.increment(); //TODO: maybe this should be somewhere else, since this code is not affected if the transaction fails, and it will count the message as published even if it's not?
 
                 var notification = event.getNotification();
                 notification.setStatus(NotificationStatus.QUEUED);
@@ -65,12 +66,12 @@ public class OutboxPublisher {
                 log.info("Published outbox event {} for notification {} via {}",
                         event.getId(), notification.getId(), routingKey);
             } catch (Exception e) {
-                event.setRetryCount(event.getRetryCount() + 1);
-                event.setLastError(e.getMessage());
-                outboxEventRepository.save(event);
+                event.setRetryCount(event.getRetryCount() + 1); // Increment retry count to DB 
+                event.setLastError(e.getMessage()); // Set the last error message to DB
+                outboxEventRepository.save(event); // Save the updated event to DB
                 log.error("Failed to publish outbox event {}: {}", event.getId(), e.getMessage());
-            } finally {
-                MDC.remove("notificationId");
+            } finally { // finally: Always runs whether the try-block succeeds or fails
+                MDC.remove("notificationId"); // Clean up MDC context
             }
         }
     }

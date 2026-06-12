@@ -33,15 +33,15 @@ public class EmailWorker extends BaseNotificationWorker {
         this.emailProvider = emailProvider;
     }
 
-    @RabbitListener(queues = "email-queue")
+    @RabbitListener(queues = "email-queue") // This annotation tells Spring to listen to the "email-queue"
     public void listen(Message message) {
-        // parent class handles parsing JSON and updating database
+        // parent class handles parsing JSON message format from RabbitMQ and updating database
         super.processMessage(message);
     }
 
     @Override
     protected void deliver(NotificationPayload payload, Notification notification) throws Exception {
-        String from = payload.getSenderEmail() != null ? payload.getSenderEmail() : "noreply@notificationplatform.com";
+        String from = payload.getSenderEmail() != null ? payload.getSenderEmail() : "noreply@notificationplatform.com"; // TODO: use real default email, with domain we own.
         String to = payload.getRecipient();
         String subject = payload.getSubject() != null ? payload.getSubject() : "No Subject";
         String content = payload.getContent();

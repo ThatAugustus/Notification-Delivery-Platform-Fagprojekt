@@ -116,7 +116,7 @@ public abstract class BaseNotificationWorker {
             String errorReason = e.getClass().getSimpleName();
 
             // 5. Failure — Record it
-            if (notification != null) {
+            if (notification != null) { // case when notification is not null, i.e. the notification was found
                 String channel = notification.getChannel().name().toLowerCase();
 
                 notification.setRetryCount(notification.getRetryCount() + 1);
@@ -169,15 +169,14 @@ public abstract class BaseNotificationWorker {
                 attempt.setDurationMs(duration);
 
                 deliveryAttemptRepository.save(attempt);
-            }
-                if (notification == null) {
+            } else { // case when notification is null, i.e. the notification was not found
                     log.error("Unrecoverable message rejected to DLQ: {}", e.getMessage());
                     Counter.builder("worker.errors")
                             .tag("channel", "unknown")
                             .tag("error", errorReason)
                             .register(meterRegistry).increment();
                     throw new AmqpRejectAndDontRequeueException("Unrecoverable: " + e.getMessage(), e);
-                }
+            }
         }
     }
 
