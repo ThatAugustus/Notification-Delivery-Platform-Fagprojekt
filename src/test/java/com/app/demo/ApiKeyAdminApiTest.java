@@ -191,10 +191,62 @@ class ApiKeyAdminApiTest extends BaseIntegrationTest {
 
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
         }
+        @Nested
+        @DisplayName("Cross-tenant revoke protection")
+        class RevokeSecurityTests {
+
+            @Test
+            @DisplayName("Tenant B cannot revoke Tenant A's key → 404, and A's key still works")
+            void crossTenantRevoke_isBlocked() {
+                // Tenant A owns a key
+                String tenantA = createTenant();
+                String rawKeyA = createKey(tenantA, "owned-by-A");
+                String keyIdA = findKeyIdFor(tenantA);
+
+                // Tenant B exists but does not own A's key
+                String tenantB = createTenant();
+
+                // B tries to revoke A's key by putting A's keyId under B's path
+                var response = restTemplate.exchange(
+                        "/api/v1/admin/tenants/" + tenantB + "/api-keys/" + keyIdA,
+                        HttpMethod.DELETE,
+                        new HttpEntity<>(adminHeaders()),
+                        Void.class
+                );
+
+                // Guard reports 404 rather than leaking that the key exists under another tenant
+                assertThat(response.getStatusCode())
+                        .as("Cross-tenant revoke should be rejected as 404, got: %s", response.getStatusCode())
+                        .isEqualTo(HttpStatus.NOT_FOUND);
+
+                // The important part: prove the guard actually PREVENTED the revocation.
+                // A's key must still authenticate after B's failed attempt.
+                String notifBody = """
+                    {
+                        "channel": "EMAIL",
+                        "recipient": "still-valid@example.com",
+                        "subject": "A's key should still work",
+                        "content": "Cross-tenant revoke must not have touched this key",
+                        "idempotencyKey": "cross-tenant-%s"
+                    }
+                    """.formatted(UUID.randomUUID());
+
+                var notifResponse = restTemplate.exchange(
+                        "/api/v1/notifications",
+                        HttpMethod.POST,
+                        new HttpEntity<>(notifBody, tenantHeaders(rawKeyA)),
+                        MAP_TYPE
+                );
+
+                assertThat(notifResponse.getStatusCode())
+                        .as("Tenant A's key must remain valid after B's failed revoke")
+                        .isEqualTo(HttpStatus.ACCEPTED);
+            }
+        }
     }
 
 
-    // --- helpers with diagnostic output ---
+    //helpers with diagnostic output
 
     private String createTenant() {
         String body = """
