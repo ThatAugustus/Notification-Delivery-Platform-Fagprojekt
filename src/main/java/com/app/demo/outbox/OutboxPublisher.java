@@ -2,13 +2,11 @@ package com.app.demo.outbox;
 
 import java.util.List;
 
-import io.micrometer.core.instrument.Counter;
-import io.micrometer.core.instrument.MeterRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.slf4j.MDC; // Mapped Diagnostic Context - used for structured logging across threads
+import org.slf4j.MDC;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
-import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.scheduling.annotation.Scheduled; // Mapped Diagnostic Context - used for structured logging across threads
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -16,6 +14,9 @@ import com.app.demo.model.OutboxEvent;
 import com.app.demo.model.enums.NotificationStatus;
 import com.app.demo.repository.NotificationRepository;
 import com.app.demo.repository.OutboxEventRepository;
+
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 
 @Component
 public class OutboxPublisher {
@@ -48,7 +49,8 @@ public class OutboxPublisher {
         for (OutboxEvent event : pending) {
             MDC.put("notificationId", event.getNotification().getId().toString());
             try {
-                String routingKey = "notification." + event.getNotification().getChannel().name().toLowerCase();
+                String routingKey = "notification." + event.getNotification().getChannel().name().toLowerCase() + 
+                                    "." + event.getNotification().getTenant().getId(); // form: "notification.<channel>.<tenantId>"
 
                 rabbitTemplate.convertAndSend(
                         "notifications-exchange",

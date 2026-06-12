@@ -103,6 +103,7 @@ public class NotificationService {
             NotificationPayload payload = new NotificationPayload(
                     notification.getId(),
                     notification.getChannel(),
+                    notification.getTenant().getId(),
                     notification.getTenant().getDefaultFromEmail() != null
                             ? notification.getTenant().getDefaultFromEmail()
                             : "noreply@notificationplatform.com",

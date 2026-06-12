@@ -14,6 +14,7 @@ import lombok.NoArgsConstructor;
 public class NotificationPayload {
     private UUID notificationId;
     private NotificationChannel channel;
+    private UUID tenantId;
     private String senderEmail;
     private String recipient;
     private String subject;

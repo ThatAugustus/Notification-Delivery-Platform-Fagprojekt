@@ -2,8 +2,6 @@ package com.app.demo.retry;
 
 import java.util.List;
 
-import io.micrometer.core.instrument.Counter;
-import io.micrometer.core.instrument.MeterRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
@@ -16,6 +14,9 @@ import com.app.demo.model.Notification;
 import com.app.demo.model.enums.NotificationStatus;
 import com.app.demo.repository.NotificationRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
+
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 
 @Component
 public class RetryPoller {
@@ -54,7 +55,8 @@ public class RetryPoller {
         for (Notification notification : due) {
             try {
                 String payload = buildPayload(notification);
-                String routingKey = "notification." + notification.getChannel().name().toLowerCase();
+                String routingKey = "notification." + notification.getChannel().name().toLowerCase() + 
+                                    "." + notification.getTenant().getId(); // form: "notification.<channel>.<tenantId>"
 
                 rabbitTemplate.convertAndSend("notifications-exchange", routingKey, payload);
 
@@ -83,6 +85,7 @@ public class RetryPoller {
             NotificationPayload payload = new NotificationPayload(
                     notification.getId(),
                     notification.getChannel(),
+                    notification.getTenant().getId(),
                     fromEmail,
                     notification.getRecipient(),
                     notification.getSubject(),

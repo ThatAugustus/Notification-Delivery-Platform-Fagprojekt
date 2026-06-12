@@ -62,9 +62,17 @@ public abstract class BaseNotificationWorker {
 
             // Metrics: count every message received (fires BEFORE processing)
             String routingKey = message.getMessageProperties().getReceivedRoutingKey();
-            String channelTag = routingKey != null ? routingKey.replace("notification.", "") : "unknown";
+            String channelTag = "unknown";
+            if (routingKey != null && routingKey.startsWith("notification.")) {
+                String[] parts = routingKey.split("\\.");
+                if (parts.length >= 2) {
+                    channelTag = parts[1]; // email or webhook
+                }
+            }
+            String tenantTag = payload.getTenantId() != null ? payload.getTenantId().toString() : "unknown";
             Counter.builder("worker.received")
                     .tag("channel", channelTag)
+                    .tag("tenant", tenantTag)
                     .description("Messages received by workers (before processing)")
                     .register(meterRegistry).increment();
 
@@ -95,6 +103,7 @@ public abstract class BaseNotificationWorker {
 
             // Metrics: count success + record duration
             String channel = notification.getChannel().name().toLowerCase();
+            String tenantId = notification.getTenant().getId().toString();
             Counter.builder("worker.processed")
                     .tag("channel", channel)
                     .tag("result", "success")
@@ -102,6 +111,7 @@ public abstract class BaseNotificationWorker {
                     .register(meterRegistry).increment();
             Timer.builder("worker.duration")
                     .tag("channel", channel)
+                    .tag("tenant", tenantId)
                     .description("Time to process a message")
                     .register(meterRegistry)
                     .record(duration, TimeUnit.MILLISECONDS);
@@ -118,6 +128,7 @@ public abstract class BaseNotificationWorker {
             // 5. Failure — Record it
             if (notification != null) { // case when notification is not null, i.e. the notification was found
                 String channel = notification.getChannel().name().toLowerCase();
+                String tenantId = notification.getTenant().getId().toString();
 
                 notification.setRetryCount(notification.getRetryCount() + 1);
 
@@ -135,6 +146,7 @@ public abstract class BaseNotificationWorker {
                     Counter.builder("worker.processed")
                             .tag("channel", channel)
                             .tag("result", "retry_scheduled")
+                            .tag("tenant", tenantId)
                             .description("Messages that failed and were scheduled for retry")
                             .register(meterRegistry).increment();
                 } else {
@@ -149,6 +161,7 @@ public abstract class BaseNotificationWorker {
                     Counter.builder("worker.processed")
                             .tag("channel", channel)
                             .tag("result", "failed")
+                            .tag("tenant", tenantId)
                             .description("Messages that permanently failed")
                             .register(meterRegistry).increment();
                 }
@@ -157,6 +170,7 @@ public abstract class BaseNotificationWorker {
                 Counter.builder("worker.errors")
                         .tag("channel", channel)
                         .tag("error", errorReason)
+                        .tag("tenant", tenantId)
                         .description("Worker errors by exception type")
                         .register(meterRegistry).increment();
 

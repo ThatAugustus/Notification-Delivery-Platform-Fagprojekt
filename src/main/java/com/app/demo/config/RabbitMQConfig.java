@@ -3,7 +3,6 @@ package com.app.demo.config;
 import org.springframework.amqp.core.Binding;
 import org.springframework.amqp.core.BindingBuilder;
 import org.springframework.amqp.core.Queue;
-import org.springframework.amqp.core.QueueBuilder;
 import org.springframework.amqp.core.TopicExchange;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -35,39 +34,5 @@ public class RabbitMQConfig {
                 .with("#"); // catch-all: any routing key
     }
 
-    // Email queue
-    // The queue where email messages wait to be consumed
-    @Bean
-    public Queue emailQueue() {
-        return QueueBuilder.durable("email-queue")
-                .withArgument("x-dead-letter-exchange", "dead-letter-exchange")
-                .build();
-    }
-
-    // The binding — tells the exchange: "messages with routing key
-    // 'notification.email' go to email-queue"
-    @Bean
-    public Binding emailBinding(Queue emailQueue, TopicExchange notificationsExchange) {
-        return BindingBuilder
-                .bind(emailQueue)
-                .to(notificationsExchange)
-                .with("notification.email");
-    }
-
-
-    // Webhook queue
-    @Bean
-    public Queue webhookQueue() {
-        return QueueBuilder.durable("webhook-queue")
-                .withArgument("x-dead-letter-exchange", "dead-letter-exchange")
-                .build();
-    }
-
-    @Bean
-    public Binding webhookBinding(Queue webhookQueue, TopicExchange notificationsExchange) {
-        return BindingBuilder
-                .bind(webhookQueue)
-                .to(notificationsExchange)
-                .with("notification.webhook");
-    }
+    // Per-tenant queues are registered dynamically by TenantQueueRegistrar.
 }
