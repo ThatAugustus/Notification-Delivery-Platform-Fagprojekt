@@ -509,7 +509,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "rabbitmq_queue_consumers{queue=\"email-queue\"}",
+          "expr": "sum(rabbitmq_queue_consumers{queue=~\"email-queue\\\\..+\"})",
           "legendFormat": "consumers"
         }
       ]
@@ -581,7 +581,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "rabbitmq_queue_consumers{queue=\"webhook-queue\"}",
+          "expr": "sum(rabbitmq_queue_consumers{queue=~\"webhook-queue\\\\..+\"})",
           "legendFormat": "consumers"
         }
       ]

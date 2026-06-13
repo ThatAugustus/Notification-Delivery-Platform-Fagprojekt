@@ -11,6 +11,7 @@ import org.springframework.amqp.core.TopicExchange;
 import org.springframework.amqp.rabbit.core.RabbitAdmin;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
+import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
 import com.app.demo.model.Tenant;
@@ -42,6 +43,7 @@ public class TenantQueueRegistrar {
 
     // Runs at startup (after beans are created, but before regular listeners)
     @EventListener(ApplicationReadyEvent.class)
+    @Order(1) // Ensure this runs before any listeners that might consume from the queues
     public void registerTenantQueues() {
         log.info("Registering per-tenant queues...");
         try {

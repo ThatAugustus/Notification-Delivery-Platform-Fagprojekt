@@ -9,9 +9,9 @@ import org.springframework.amqp.rabbit.config.SimpleRabbitListenerEndpoint;
 import org.springframework.amqp.rabbit.listener.MessageListenerContainer;
 import org.springframework.amqp.rabbit.listener.RabbitListenerContainerFactory;
 import org.springframework.amqp.rabbit.listener.RabbitListenerEndpointRegistry;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
+import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
 import com.app.demo.model.Tenant;
@@ -27,7 +27,6 @@ import com.app.demo.worker.WebhookWorker;
  */
 
 @Component
-@ConditionalOnBean(RabbitListenerContainerFactory.class)
 public class DynamicWorkerListenerRegistrar {
     private static final Logger log = LoggerFactory.getLogger(DynamicWorkerListenerRegistrar.class);
 
@@ -51,6 +50,7 @@ public class DynamicWorkerListenerRegistrar {
     }
 
     @EventListener(ApplicationReadyEvent.class)
+    @Order(2) // run after TenantQueueRegistrar to ensure queues are created before listeners
     public void registerWorkerListeners() {
         log.info("Registering dynamic worker listeners for all tenant queues...");
         try {

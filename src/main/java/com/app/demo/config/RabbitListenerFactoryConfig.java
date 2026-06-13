@@ -17,6 +17,8 @@ public class RabbitListenerFactoryConfig {
         factory.setConcurrentConsumers(2);
         factory.setMaxConcurrentConsumers(10);
         factory.setDefaultRequeueRejected(false);
+        factory.setMissingQueuesFatal(false);
+        factory.setRecoveryInterval(5000L);
         return factory;
     }
 }
