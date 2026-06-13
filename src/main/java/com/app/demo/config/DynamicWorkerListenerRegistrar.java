@@ -6,10 +6,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.amqp.core.Message;
 import org.springframework.amqp.rabbit.config.SimpleRabbitListenerEndpoint;
-import org.springframework.amqp.rabbit.listener.RabbitListenerEndpointRegistry;
-import org.springframework.amqp.rabbit.listener.SimpleMessageListenerContainer;
-import org.springframework.amqp.rabbit.listener.RabbitListenerContainerFactory;
 import org.springframework.amqp.rabbit.listener.MessageListenerContainer;
+import org.springframework.amqp.rabbit.listener.RabbitListenerContainerFactory;
+import org.springframework.amqp.rabbit.listener.RabbitListenerEndpointRegistry;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
@@ -27,6 +27,7 @@ import com.app.demo.worker.WebhookWorker;
  */
 
 @Component
+@ConditionalOnBean(RabbitListenerContainerFactory.class)
 public class DynamicWorkerListenerRegistrar {
     private static final Logger log = LoggerFactory.getLogger(DynamicWorkerListenerRegistrar.class);
 
@@ -52,16 +53,27 @@ public class DynamicWorkerListenerRegistrar {
     @EventListener(ApplicationReadyEvent.class)
     public void registerWorkerListeners() {
         log.info("Registering dynamic worker listeners for all tenant queues...");
+        try {
+            List<Tenant> tenants = tenantRepository.findAll();
+            log.info("Found {} tenants. Setting up listeners for each tenant's queues.", tenants.size());
 
-        List<Tenant> tenants = tenantRepository.findAll();
-        log.info("Found {} tenants. Setting up listeners for each tenant's queues.", tenants.size());
-
-        for (Tenant tenant : tenants) {
-            String tenantId = tenant.getId().toString();
-            registerListener("email-queue." + tenantId, "email-listener-" + tenantId, emailWorker::listen);
-            registerListener("webhook-queue." + tenantId, "webhook-listener-" + tenantId, webhookWorker::listen);
+            for (Tenant tenant : tenants) {
+                String tenantId = tenant.getId().toString();
+                try {
+                    registerListener("email-queue." + tenantId, "email-listener-" + tenantId, emailWorker::listen);
+                } catch (Exception e) {
+                    log.error("Failed to register email listener for tenant {} (non-fatal): {}", tenantId, e.getMessage(), e);
+                }
+                try {
+                    registerListener("webhook-queue." + tenantId, "webhook-listener-" + tenantId, webhookWorker::listen);
+                } catch (Exception e) {
+                    log.error("Failed to register webhook listener for tenant {} (non-fatal): {}", tenantId, e.getMessage(), e);
+                }
+            }
+            log.info("Finished registering worker listeners.");
+        } catch (Exception e) {
+            log.error("Error registering worker listeners at startup (non-fatal): {}", e.getMessage(), e);
         }
-        log.info("Finished registering worker listeners.");
     }
 
     private void registerListener(String queueName, String listenerId, MessageHandler handler) {
@@ -75,8 +87,12 @@ public class DynamicWorkerListenerRegistrar {
         endpoint.setQueueNames(queueName);
         endpoint.setMessageListener(message -> handler.handleMessage((Message) message));
 
-        endpointRegistry.registerListenerContainer(endpoint, rabbitListenerContainerFactory, true);
-        log.info("Registered listener {} for queue {}", listenerId, queueName);
+        try {
+            endpointRegistry.registerListenerContainer(endpoint, rabbitListenerContainerFactory, true);
+            log.info("Registered listener {} for queue {}", listenerId, queueName);
+        } catch (Exception e) {
+            log.error("Failed to register listener {} for queue {}: {}", listenerId, queueName, e.getMessage(), e);
+        }
     }
 
     @FunctionalInterface

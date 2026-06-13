@@ -44,14 +44,16 @@ public class TenantQueueRegistrar {
     @EventListener(ApplicationReadyEvent.class)
     public void registerTenantQueues() {
         log.info("Registering per-tenant queues...");
-
-        List<Tenant> tenants = tenantRepository.findAll();
-        log.info("Found {} tenants. Setting up queues for each tenant.", tenants.size());
-
-        for (Tenant tenant : tenants) {
-            registerQueuesForTenant(tenant.getId().toString());
+        try {
+            List<Tenant> tenants = tenantRepository.findAll();
+            log.info("Found {} tenants. Setting up queues for each tenant.", tenants.size());
+            for (Tenant tenant : tenants) {
+                registerQueuesForTenant(tenant.getId().toString());
+            }
+            log.info("Finished registering tenant queues.");
+        } catch (Exception e) {
+            log.error("Error registering tenant queues at startup (non-fatal): {}", e.getMessage(), e);
         }
-        log.info("Finished registering tenant queues.");
     }
 
     private void registerQueuesForTenant(String tenantId) {
@@ -86,7 +88,7 @@ public class TenantQueueRegistrar {
 
             log.debug("Registered queues for tenant {}: {} and {}", tenantId, emailQueueName, webhookQueueName);
         } catch (Exception e) {
-            log.error("Failed to register queues for tenant {}: {}", tenantId, e.getMessage());
+            log.error("Failed to register queues for tenant {}: {}", tenantId, e.getMessage(), e);
         }
     }
 }
