@@ -10,6 +10,7 @@ import java.time.Duration;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 
+import io.micrometer.core.instrument.MeterRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.amqp.core.Message;
@@ -34,9 +35,10 @@ public class WebhookWorker extends BaseNotificationWorker {
             ObjectMapper objectMapper,
             NotificationRepository notificationRepository,
             DeliveryAttemptRepository deliveryAttemptRepository,
-            RetryPolicy retryPolicy) {
+            RetryPolicy retryPolicy,
+            MeterRegistry meterRegistry) {
 
-        super(objectMapper, notificationRepository, deliveryAttemptRepository, retryPolicy);
+        super(objectMapper, notificationRepository, deliveryAttemptRepository, retryPolicy, meterRegistry);
 
         this.httpClient = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(10))

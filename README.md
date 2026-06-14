@@ -31,11 +31,28 @@ Designed for **business-critical notifications** — password resets, fraud aler
 - Java 21
 - Docker & Docker Compose
 
-### Run
+### Run docker containers + application in terminal
 ```bash
-docker compose up -d        # Start PostgreSQL, RabbitMQ, Redis
-./gradlew bootRun            # Start the application
+docker compose up -d        # Start PostgreSQL, RabbitMQ, Redis, mailpit, adminer, prometheus, grafana
+./gradlew bootRun           # Start the application
 ```
+
+### Run full app in docker
+```bash
+# run docker and build docker app container
+docker compose --profile full up -d --build # if code changed rebuild image
+docker compose --profile full up -d         # else
+
+# view logs
+docker compose --profile full logs -f app # app only
+docker compose logs -f app          # follow app logs only
+docker compose logs -f # all logs
+docker compose logs app --tail 50   # last 50 lines of app
+
+# stop docker containers
+docker compose --profile full down 
+```
+
 
 ### Test
 ```bash
@@ -44,28 +61,22 @@ docker compose up -d        # Start PostgreSQL, RabbitMQ, Redis
 
 ### Testing tools
 
-#### local host
+#### Load testing
 
 ```bash
-# Swagger UI
-http://localhost:8080
-
-# Mailpit UI
-http://localhost:8025
-
-# RabbitMQ UI
-http://localhost:15673
+tests/load/run-load-test.sh
 ```
+```bash
+# not done yet but works for basic tests
+tests/load/pipeline-test.sh
 
 
 
-#### API Key
+#### API Test Key
 
 ```bash
 my-test-key-123
 ```
-
-
 
 #### POST requests
 ```bash
@@ -92,6 +103,63 @@ curl -X POST http://localhost:8080/api/v1/notifications \
     "content": "This is a test webhook."
   }'
 ```
+
+### UI's
+
+
+#### Adminer (database):
+
+**Link:** http://localhost:8081
+
+**Logging in:**
+| Field    | Value                 |
+| -------- | --------------------- |
+| System   | PostgreSQL            |
+| Server   | postgres              |
+| Username | dev                   |
+| Password | dev                   |
+| Database | notification_platform |
+
+#### RabbitMQ (queues):
+
+**Link:** http://localhost:15673
+
+| Field    | Value                 |
+| -------- | --------------------- |
+| Username | dev                   |
+| Password | dev                   |
+
+#### Mailpit (emails):
+
+**Link:** http://localhost:8025
+
+#### Swagger (API documentation)
+
+**Link:** http://localhost:8080
+
+#### Actuator (health checks)
+
+**Link:** http://localhost:8080/actuator/health
+
+#### Prometheus (metrics)
+
+**Link:** http://localhost:9090
+
+Raw metrics endpoint: http://localhost:8080/actuator/prometheus
+
+#### Grafana (dashboards)
+
+**Link:** http://localhost:3000
+
+| Field    | Value |
+| -------- | ----- |
+| Username | dev   |
+| Password | dev   |
+
+**custom grafana dashboards at:** 
+
+http://localhost:3000/d/ndp-overview/notification-delivery-platform
+
 
 ## Team
 

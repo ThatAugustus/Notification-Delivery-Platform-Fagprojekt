@@ -1,0 +1,42 @@
+# Tempo configuration — minimal setup for local development.
+# Receives traces via OTLP (the OpenTelemetry standard protocol).
+
+# port 4318 OTLP HTTP receives traces, our spring boot app sends traces here
+# port 3200 Tempo API. grafana will query tempo traces from here
+# storage: local. Traces are stored on local disk in /var/tempo/traces
+# wal: local. Traces are written to the write-ahead log in /var/tempo/wal before being flushed to disk.
+# wal is used for crash recovery and to ensure that no data is lost 
+
+target: all # Run all components in a single process (single-binary mode)
+
+server:
+  http_listen_port: 3200      # Grafana queries traces here
+
+distributor:
+  receivers:
+    otlp:
+      protocols:
+        http:
+          endpoint: "0.0.0.0:4318"   # app sends traces here
+
+metrics_generator:
+  registry:
+    external_labels:
+      source: tempo
+  storage:
+    path: /var/tempo/generator/wal
+    remote_write:
+      - url: http://prometheus:9090/api/v1/write
+        send_exemplars: true
+overrides:
+  defaults:
+    metrics_generator:
+      processors: [service-graphs, span-metrics]
+
+storage:
+  trace:
+    backend: local
+    local:
+      path: /var/tempo/traces
+    wal:
+      path: /var/tempo/wal

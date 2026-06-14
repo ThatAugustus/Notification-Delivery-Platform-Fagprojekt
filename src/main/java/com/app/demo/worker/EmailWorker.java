@@ -1,5 +1,6 @@
 package com.app.demo.worker;
 
+import io.micrometer.core.instrument.MeterRegistry;
 import org.springframework.amqp.core.Message;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.stereotype.Component;
@@ -22,25 +23,25 @@ public class EmailWorker extends BaseNotificationWorker {
             NotificationRepository notificationRepository,
             DeliveryAttemptRepository deliveryAttemptRepository,
             RetryPolicy retryPolicy,
-            EmailProvider emailProvider) {
+            EmailProvider emailProvider,
+            MeterRegistry meterRegistry) {
         
         // Pass shared dependencies up to the parent
-        super(objectMapper, notificationRepository, deliveryAttemptRepository, retryPolicy);
+        super(objectMapper, notificationRepository, deliveryAttemptRepository, retryPolicy, meterRegistry);
         
         // Keep Email-specific dependencies here
         this.emailProvider = emailProvider;
     }
 
-    @RabbitListener(queues = "email-queue")
+    @RabbitListener(queues = "email-queue") // This annotation tells Spring to listen to the "email-queue"
     public void listen(Message message) {
-        // we let the parent class do the hard work of parsing JSON and updating databases
+        // parent class handles parsing JSON message format from RabbitMQ and updating database
         super.processMessage(message);
     }
 
     @Override
     protected void deliver(NotificationPayload payload, Notification notification) throws Exception {
-        // THIS is the only thing the EmailWorker actually has to do!
-        String from = payload.getSenderEmail() != null ? payload.getSenderEmail() : "noreply@notificationplatform.com";
+        String from = payload.getSenderEmail() != null ? payload.getSenderEmail() : "noreply@notificationplatform.com"; // TODO: use real default email, with domain we own.
         String to = payload.getRecipient();
         String subject = payload.getSubject() != null ? payload.getSubject() : "No Subject";
         String content = payload.getContent();

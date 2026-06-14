@@ -1,0 +1,2 @@
+# This directory stores k6 performance test results (JSON).
+# Each run creates a timestamped file for comparison.

@@ -20,6 +20,8 @@ import org.testcontainers.containers.RabbitMQContainer;
 @ActiveProfiles("test")
 public abstract class BaseIntegrationTest {
 
+    // one shared infra setup for all integration tests
+    @SuppressWarnings("resource")
     static final PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:17")
             .withDatabaseName("notification_platform")
             .withUsername("test")

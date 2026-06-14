@@ -1,0 +1,23 @@
+{
+  "timestamp": "2026-04-23T22:03:29.092Z",
+  "environment": {
+    "hostname": "00b98c00e4",
+    "k6_version": "k6",
+    "os": "ProductName:\t\tmacOS ProductVersion:\t\t26.3 ",
+    "cpu": "Apple M1 Pro",
+    "ram_gb": "16.0",
+    "note": ""
+  },
+  "duration_seconds": 90.060694,
+  "vus_max": 30,
+  "throughput_rps": 151.93087452779343,
+  "latency": {
+    "avg_ms": 16.04882145728271,
+    "p95_ms": 27.383599999999984,
+    "max_ms": 1331.928
+  },
+  "error_rate": 0,
+  "total_requests": 13683,
+  "notifications_accepted": 13683,
+  "notifications_rejected": 0
+}

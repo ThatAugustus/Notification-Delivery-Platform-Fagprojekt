@@ -1,3 +1,4 @@
+
 package com.app.demo.retry;
 
 import java.time.Instant;
@@ -5,6 +6,7 @@ import java.util.Random;
 
 import org.springframework.stereotype.Component;
 
+//helper class to calculate the next retry time for a failed notification
 @Component
 public class RetryPolicy {
 

@@ -37,7 +37,7 @@ public class NotificationService {
         this.idempotencyCache = idempotencyCache;
     }
 
-    @Transactional
+    @Transactional // Spring manages the DB transaction. This ensures that if anything fails, everything is rolled back.
     public Notification createNotification(Tenant tenant, NotificationRequest request) {
 
         // Idempotency check, Redis first, then PostgreSQL

@@ -2,6 +2,8 @@ package com.app.demo.retry;
 
 import java.util.List;
 
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
@@ -24,14 +26,19 @@ public class RetryPoller {
     private final NotificationRepository notificationRepository;
     private final RabbitTemplate rabbitTemplate;
     private final ObjectMapper objectMapper;
+    private final Counter requeuedCounter;
 
     public RetryPoller(
             NotificationRepository notificationRepository,
             RabbitTemplate rabbitTemplate,
-            ObjectMapper objectMapper) {
+            ObjectMapper objectMapper,
+            MeterRegistry meterRegistry) {
         this.notificationRepository = notificationRepository;
         this.rabbitTemplate = rabbitTemplate;
         this.objectMapper = objectMapper;
+        this.requeuedCounter = Counter.builder("retry.requeued")
+                .description("Messages re-queued by the retry poller")
+                .register(meterRegistry);
     }
 
     // Runs every 2 seconds to find and re-queue notifications that are due for retry
@@ -54,6 +61,7 @@ public class RetryPoller {
                 notification.setStatus(NotificationStatus.QUEUED);
                 notification.setNextRetryAt(null);
                 notificationRepository.save(notification);
+                requeuedCounter.increment();
 
                 log.info("Re-queued notification {} for retry attempt #{} via {}",
                         notification.getId(), notification.getRetryCount() + 1, routingKey);
@@ -70,7 +78,7 @@ public class RetryPoller {
         try {
             String fromEmail = notification.getTenant().getDefaultFromEmail() != null
                     ? notification.getTenant().getDefaultFromEmail()
-                    : "noreply@notificationplatform.com";
+                    : "noreply@notificationplatform.com"; // TODO: use real default email, with domain we own.
 
             NotificationPayload payload = new NotificationPayload(
                     notification.getId(),
