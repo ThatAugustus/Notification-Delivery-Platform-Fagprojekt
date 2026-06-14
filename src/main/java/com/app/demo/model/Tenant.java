@@ -41,6 +41,9 @@ public class Tenant {
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt = Instant.now();
 
+    @Column(name = "deleted_at")
+    private Instant deletedAt;
+
     // Constructor for creating a new tenant
     public Tenant(String name) { 
         // we only need name because id, createdAt, and updatedAt are handled automatically
@@ -50,5 +53,19 @@ public class Tenant {
     @PreUpdate
     protected void onUpdate() {
         this.updatedAt = Instant.now();
+    }
+
+    public void softDelete() {
+        this.deletedAt = Instant.now();
+    }
+
+    // Convenience: restores a previously soft-deleted tenant.
+    public void restore() {
+        this.deletedAt = null;
+    }
+
+    // Convenience: true if this tenant has been soft-deleted.
+    public boolean isDeleted() {
+        return deletedAt != null;
     }
 }

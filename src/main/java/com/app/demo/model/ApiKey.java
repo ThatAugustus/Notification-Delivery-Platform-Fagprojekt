@@ -57,4 +57,9 @@ public class ApiKey {
         this.prefix = prefix;
         this.name = name;
     }
+
+    public void revoke() {
+        this.active = false;
+        this.revokedAt = Instant.now();
+    }
 }
