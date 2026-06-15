@@ -100,8 +100,8 @@ public class GlobalExceptionHandler {
      * so this handler is free to treat IllegalArgumentException as a client input error.
      */
     @ExceptionHandler(IllegalArgumentException.class)
-    public ResponseEntity<Map<String, Object>> handleBadArgument(IllegalArgumentException ex) { // <-- CHANGED (renamed)
-        return buildError(HttpStatus.BAD_REQUEST, ex.getMessage()); // <-- CHANGED (was NOT_FOUND)
+    public ResponseEntity<Map<String, Object>> handleBadArgument(IllegalArgumentException ex) {
+        return buildError(HttpStatus.BAD_REQUEST, ex.getMessage());
     }
 
     /**
@@ -109,7 +109,7 @@ public class GlobalExceptionHandler {
      * with a name that already exists (the UNIQUE constraint on tenants.name).
      * Returns 409 Conflict instead of a generic 500.
      */
-    @ExceptionHandler(DataIntegrityViolationException.class) // <-- NEW (whole method)
+    @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<Map<String, Object>> handleDataIntegrity(DataIntegrityViolationException ex) {
         log.warn("Data integrity violation: {}", ex.getMostSpecificCause().getMessage());
         return buildError(HttpStatus.CONFLICT,
