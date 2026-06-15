@@ -1,4 +1,3 @@
-
 package com.app.demo.service;
 
 import java.nio.charset.StandardCharsets;
@@ -40,8 +39,7 @@ public class ApiKeyManagementService {
         this.tenantManagementService = tenantManagementService;
     }
 
-    // Returns a record containing the saved key metadata AND the raw key.
-    // The raw key is only ever returned here — never stored, never returned again.
+    // Returns the saved key plus the raw key. The raw key is only ever returned here: never stored, never shown again.
     @Transactional
     public CreatedKey create(UUID tenantId, CreateApiKeyRequest request) {
         Tenant tenant = tenantManagementService.getActive(tenantId);
@@ -66,7 +64,6 @@ public class ApiKeyManagementService {
 
     @Transactional
     public void revoke(UUID tenantId, UUID keyId) {
-        // Make sure tenant is active
         tenantManagementService.getActive(tenantId);
 
         ApiKey key = apiKeyRepository.findById(keyId)
@@ -97,7 +94,6 @@ public class ApiKeyManagementService {
         }
     }
 
-    // Small value type so the controller can return both the entity and the raw key.
     public record CreatedKey(ApiKey apiKey, String rawKey) {
     }
 }

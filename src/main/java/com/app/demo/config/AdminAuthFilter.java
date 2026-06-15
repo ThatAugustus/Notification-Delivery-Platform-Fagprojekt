@@ -40,14 +40,14 @@ public class AdminAuthFilter extends OncePerRequestFilter {
 
         String path = request.getRequestURI();
 
-        // Only guard admin endpoints
         if (!path.startsWith(ADMIN_PATH_PREFIX)) {
             chain.doFilter(request, response);
             return;
         }
 
+        // Fail closed: if no admin key is configured, no one gets into the admin endpoints.
         if (configuredKey == null || configuredKey.isBlank()) {
-            log.error("admin.api-key is not configured — rejecting admin request to {}", path);
+            log.error("admin.api-key is not configured, rejecting admin request to {}", path);
             writeUnauthorized(response, "Admin endpoints are not configured on this server");
             return;
         }
@@ -78,6 +78,7 @@ public class AdminAuthFilter extends OncePerRequestFilter {
         objectMapper.writeValue(response.getWriter(), body);
     }
 
+    // Compares in constant time so an attacker can't learn the key from response timing.
     private static boolean constantTimeEquals(String a, String b) {
         if (a.length() != b.length()) return false;
         int result = 0;

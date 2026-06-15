@@ -1,4 +1,3 @@
-
 package com.app.demo.service;
 
 import java.security.SecureRandom;
@@ -49,7 +48,7 @@ public class TenantManagementService {
                 .orElseThrow(() -> new ResourceNotFoundException("Tenant not found: " + id));
     }
 
-    // Used by the restore endpoint — needs to find soft-deleted rows too.
+    // Restore needs this variant because it has to find soft-deleted rows too.
     public Tenant getAny(UUID id) {
         return tenantRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Tenant not found: " + id));
@@ -67,7 +66,7 @@ public class TenantManagementService {
         }
 
         log.info("Updated tenant: id={}", id);
-        return tenant; // managed entity — changes flush on transaction commit
+        return tenant; // managed entity, so changes flush on transaction commit
     }
 
     @Transactional
@@ -81,7 +80,7 @@ public class TenantManagementService {
     public Tenant restore(UUID id) {
         Tenant tenant = getAny(id);
         if (!tenant.isDeleted()) {
-            // Not an error — just idempotent. Log and return.
+            // Already active, so restore is a no-op rather than an error.
             log.info("Tenant {} is already active; restore is a no-op", id);
             return tenant;
         }
@@ -90,8 +89,7 @@ public class TenantManagementService {
         return tenant;
     }
 
-    // Generates a 256-bit random secret, base64-encoded. Used as the HMAC key
-    // for webhook signing. Matches the existing webhookSecret format.
+    // 256-bit random secret, base64url-encoded, used as the HMAC key for webhook signing.
     private String generateWebhookSecret() {
         byte[] bytes = new byte[32];
         secureRandom.nextBytes(bytes);

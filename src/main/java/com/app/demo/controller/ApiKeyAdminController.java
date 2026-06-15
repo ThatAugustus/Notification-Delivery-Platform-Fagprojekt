@@ -1,4 +1,3 @@
-
 package com.app.demo.controller;
 
 import java.util.List;
@@ -31,8 +30,7 @@ public class ApiKeyAdminController {
         this.service = service;
     }
 
-    // Creates a new API key for a tenant.
-    // This is the ONLY time the raw key is returned — clients must store it immediately.
+    // The raw key is returned only in this response, so clients must store it immediately.
     @PostMapping
     public ResponseEntity<CreateApiKeyResponse> create(@PathVariable UUID tenantId,
                                                        @Valid @RequestBody CreateApiKeyRequest request) {
@@ -49,7 +47,7 @@ public class ApiKeyAdminController {
         return ResponseEntity.status(201).body(body);
     }
 
-    // Lists all keys for a tenant (active and revoked). Never exposes the raw key.
+    // Lists active and revoked keys. Never exposes the raw key.
     @GetMapping
     public ResponseEntity<List<ApiKeyResponse>> list(@PathVariable UUID tenantId) {
         List<ApiKeyResponse> keys = service.listForTenant(tenantId).stream()
@@ -58,12 +56,11 @@ public class ApiKeyAdminController {
         return ResponseEntity.ok(keys);
     }
 
-    // Revoke a key. The key row stays (for audit) but active=false means it will be
-    // rejected by ApiKeyService.resolveTenant() on future requests.
+    // Revoking keeps the row for audit but sets active=false, so ApiKeyService rejects it on future requests.
     @DeleteMapping("/{keyId}")
     public ResponseEntity<Void> revoke(@PathVariable UUID tenantId,
                                        @PathVariable UUID keyId) {
         service.revoke(tenantId, keyId);
-        return ResponseEntity.noContent().build(); // 204
+        return ResponseEntity.noContent().build();
     }
 }

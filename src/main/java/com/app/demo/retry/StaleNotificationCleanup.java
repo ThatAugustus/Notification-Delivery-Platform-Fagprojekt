@@ -41,10 +41,10 @@ public class StaleNotificationCleanup {
             String previousStatus = notification.getStatus().name();
 
             notification.setStatus(NotificationStatus.RETRY_SCHEDULED);
-            notification.setNextRetryAt(Instant.now()); // due immediately — RetryPoller will pick it up
+            notification.setNextRetryAt(Instant.now()); // due now, so RetryPoller picks it up on its next pass
             notificationRepository.save(notification);
 
-            log.warn("Recovered stale notification {} (was {} for >{}min) → RETRY_SCHEDULED",
+            log.warn("Recovered stale notification {} (was {} for >{}min), now RETRY_SCHEDULED",
                     notification.getId(), previousStatus, STALE_THRESHOLD_MINUTES);
         }
     }

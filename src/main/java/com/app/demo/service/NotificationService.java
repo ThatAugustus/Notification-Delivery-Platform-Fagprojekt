@@ -38,7 +38,7 @@ public class NotificationService {
         this.idempotencyCache = idempotencyCache;
     }
 
-    @Transactional // Spring manages the DB transaction. This ensures that if anything fails, everything is rolled back.
+    @Transactional
     public Notification createNotification(Tenant tenant, NotificationRequest request) {
 
         // Idempotency check, Redis first, then PostgreSQL
@@ -47,15 +47,14 @@ public class NotificationService {
             // Check Redis 
             UUID cachedId = idempotencyCache.get(tenant.getId(), request.getIdempotencyKey());
             if (cachedId != null) {
-                var cached = notificationRepository.findById(cachedId); // <-- CHANGED block starts here
+                var cached = notificationRepository.findById(cachedId);
                 if (cached.isPresent()) {
                     log.info("Idempotency hit (Redis): key={} returning existing notification={}",
                             request.getIdempotencyKey(), cachedId);
                     return cached.get();
                 }
-                // Redis pointed at an id the database does not contain (e.g. a rolled-back
-                // insert). Ignore the stale cache entry and fall through to the DB check / create
-                // path rather than returning null.
+                // Redis held an id the database no longer has (e.g. a rolled-back insert).
+                // Ignore it and fall through to the DB check / create path.
                 log.warn("Stale Redis idempotency entry: key={} pointed to missing notification={}, ignoring",
                         request.getIdempotencyKey(), cachedId);
             }

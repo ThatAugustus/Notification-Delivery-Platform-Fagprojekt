@@ -34,15 +34,11 @@ public class RedisIdempotencyCache {
             }
             return null;
         } catch (Exception e) {
-            // If Redis is down, return null, we'll fall back to PostgreSQL
+            // If Redis is down, return null, then we fall back to PostgreSQL
             log.warn("Redis GET failed, falling back to database: {}", e.getMessage());
             return null;
         }
     }
-
-
-     // Store a (tenantId + idempotencyKey), notificationId mapping.
-     // Expires after 24 hours so Redis doesn't grow forever.
 
     public void put(UUID tenantId, String idempotencyKey, UUID notificationId) {
         try {
@@ -55,8 +51,7 @@ public class RedisIdempotencyCache {
         }
     }
 
-
-     // Key format: "idempotency:{tenantId}:{idempotencyKey}"
+     // the key format idempotency:{tenantId}:{idempotencyKey}
 
     private String buildKey(UUID tenantId, String idempotencyKey) {
         return "idempotency:" + tenantId + ":" + idempotencyKey;
