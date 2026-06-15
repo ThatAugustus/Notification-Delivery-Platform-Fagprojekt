@@ -6,6 +6,7 @@ import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -91,13 +92,33 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Handles: notification not found (for the GET endpoint).
-     * Returns 404 Not Found.
+     * Handles: a value that is syntactically valid but not acceptable,
+     * e.g. an unrecognised channel string passed to NotificationChannel.valueOf().
+     * Returns 400 Bad Request.
+     *
+     * Note: "not found" cases throw ResourceNotFoundException (handled above as 404),
+     * so this handler is free to treat IllegalArgumentException as a client input error.
      */
     @ExceptionHandler(IllegalArgumentException.class)
-    public ResponseEntity<Map<String, Object>> handleNotFound(IllegalArgumentException ex) {
-        return buildError(HttpStatus.NOT_FOUND, ex.getMessage());
+    public ResponseEntity<Map<String, Object>> handleBadArgument(IllegalArgumentException ex) { // <-- CHANGED (renamed)
+        return buildError(HttpStatus.BAD_REQUEST, ex.getMessage()); // <-- CHANGED (was NOT_FOUND)
     }
+
+    /**
+     * Handles: a database constraint violation, most commonly creating a tenant
+     * with a name that already exists (the UNIQUE constraint on tenants.name).
+     * Returns 409 Conflict instead of a generic 500.
+     */
+    @ExceptionHandler(DataIntegrityViolationException.class) // <-- NEW (whole method)
+    public ResponseEntity<Map<String, Object>> handleDataIntegrity(DataIntegrityViolationException ex) {
+        log.warn("Data integrity violation: {}", ex.getMostSpecificCause().getMessage());
+        return buildError(HttpStatus.CONFLICT,
+                "The request conflicts with an existing record (a unique value is already in use)");
+    }
+
+
+
+    
 
     /**
      * Catch-all for anything we didn't explicitly handle above.

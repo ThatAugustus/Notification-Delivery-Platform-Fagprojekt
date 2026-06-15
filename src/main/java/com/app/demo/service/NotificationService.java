@@ -9,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.app.demo.dto.NotificationPayload;
 import com.app.demo.dto.NotificationRequest;
+import com.app.demo.exception.ResourceNotFoundException;
 import com.app.demo.model.Notification;
 import com.app.demo.model.OutboxEvent;
 import com.app.demo.model.Tenant;
@@ -46,9 +47,17 @@ public class NotificationService {
             // Check Redis 
             UUID cachedId = idempotencyCache.get(tenant.getId(), request.getIdempotencyKey());
             if (cachedId != null) {
-                log.info("Idempotency hit (Redis): key={} returning existing notification={}",
+                var cached = notificationRepository.findById(cachedId); // <-- CHANGED block starts here
+                if (cached.isPresent()) {
+                    log.info("Idempotency hit (Redis): key={} returning existing notification={}",
+                            request.getIdempotencyKey(), cachedId);
+                    return cached.get();
+                }
+                // Redis pointed at an id the database does not contain (e.g. a rolled-back
+                // insert). Ignore the stale cache entry and fall through to the DB check / create
+                // path rather than returning null.
+                log.warn("Stale Redis idempotency entry: key={} pointed to missing notification={}, ignoring",
                         request.getIdempotencyKey(), cachedId);
-                return notificationRepository.findById(cachedId).orElse(null);
             }
 
             // Check PostgreSQL
@@ -95,7 +104,7 @@ public class NotificationService {
 
     public Notification getNotification(Tenant tenant, UUID id) {
         return notificationRepository.findByIdAndTenant_Id(id, tenant.getId())
-                .orElseThrow(() -> new IllegalArgumentException("Notification not found: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Notification not found: " + id));
     }
 
     private String buildPayload(Notification notification) {

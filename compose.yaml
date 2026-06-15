@@ -111,18 +111,22 @@ services:
 
   # App — only starts with: docker compose --profile full up
   app:
-    build: .
-    container_name: ndp-app
-    profiles: ["full"]
-    ports:
-      - "8080:8080"
-    environment:
-      SPRING_PROFILES_ACTIVE: docker
-    depends_on:
-      - postgres
-      - rabbitmq
-      - redis
-      - mailpit
+      build: .
+      container_name: ndp-app
+      profiles: ["full"]
+      ports:
+        - "8080:8080"
+      environment:
+        SPRING_PROFILES_ACTIVE: docker
+      depends_on:
+        postgres:
+          condition: service_healthy
+        rabbitmq:
+          condition: service_healthy
+        redis:
+          condition: service_healthy
+        mailpit:
+          condition: service_started
 
 volumes:
   pgdata:
