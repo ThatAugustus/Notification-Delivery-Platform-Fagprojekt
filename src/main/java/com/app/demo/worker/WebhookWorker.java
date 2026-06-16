@@ -13,7 +13,6 @@ import javax.crypto.spec.SecretKeySpec;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.amqp.core.Message;
-import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.stereotype.Component;
 
 import com.app.demo.dto.NotificationPayload;
@@ -46,7 +45,7 @@ public class WebhookWorker extends BaseNotificationWorker {
                 .build();
     }
 
-    @RabbitListener(queues = "webhook-queue")
+    // Called by the dynamic listener registrar for each tenant queue
     public void listen(Message message) {
         super.processMessage(message);
     }

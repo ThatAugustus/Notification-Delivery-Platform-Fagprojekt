@@ -2,7 +2,6 @@ package com.app.demo.worker;
 
 import io.micrometer.core.instrument.MeterRegistry;
 import org.springframework.amqp.core.Message;
-import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.stereotype.Component;
 
 import com.app.demo.dto.NotificationPayload;
@@ -33,9 +32,8 @@ public class EmailWorker extends BaseNotificationWorker {
         this.emailProvider = emailProvider;
     }
 
-    @RabbitListener(queues = "email-queue") // This annotation tells Spring to listen to the "email-queue"
+    // Called by the dynamic listener registrar for each tenant queue
     public void listen(Message message) {
-        // parent class handles parsing JSON message format from RabbitMQ and updating database
         super.processMessage(message);
     }
 

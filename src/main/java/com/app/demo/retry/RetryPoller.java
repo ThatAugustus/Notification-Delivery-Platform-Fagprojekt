@@ -55,7 +55,8 @@ public class RetryPoller {
         for (Notification notification : due) {
             try {
                 String payload = buildPayload(notification);
-                String routingKey = "notification." + notification.getChannel().name().toLowerCase();
+                String routingKey = "notification." + notification.getChannel().name().toLowerCase() + 
+                                    "." + notification.getTenant().getId(); // form: "notification.<channel>.<tenantId>"
 
                 rabbitTemplate.convertAndSend("notifications-exchange", routingKey, payload);
 
@@ -84,6 +85,7 @@ public class RetryPoller {
             NotificationPayload payload = new NotificationPayload(
                     notification.getId(),
                     notification.getChannel(),
+                    notification.getTenant().getId(),
                     fromEmail,
                     notification.getRecipient(),
                     notification.getSubject(),
