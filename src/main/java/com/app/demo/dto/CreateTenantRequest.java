@@ -18,4 +18,8 @@ public class CreateTenantRequest {
     // Optional — some tenants only use webhooks and don't need a from-email.
     @Email(message = "defaultFromEmail must be a valid email address")
     private String defaultFromEmail;
+
+    // Optional flags to control which channels are provisioned for the tenant
+    private Boolean emailEnabled = true;
+    private Boolean webhookEnabled = true;
 }

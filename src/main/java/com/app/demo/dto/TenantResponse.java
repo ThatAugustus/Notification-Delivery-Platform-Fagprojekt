@@ -11,6 +11,8 @@ public record TenantResponse(
         String name,
         String defaultFromEmail,
         String webhookSecret,
+        boolean emailEnabled,
+        boolean webhookEnabled,
         Instant createdAt,
         Instant updatedAt,
         Instant deletedAt
@@ -21,6 +23,8 @@ public record TenantResponse(
                 tenant.getName(),
                 tenant.getDefaultFromEmail(),
                 tenant.getWebhookSecret(),
+                tenant.isEmailEnabled(),
+                tenant.isWebhookEnabled(),
                 tenant.getCreatedAt(),
                 tenant.getUpdatedAt(),
                 tenant.getDeletedAt()

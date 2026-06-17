@@ -16,12 +16,14 @@ import org.springframework.stereotype.Component;
 
 import com.app.demo.model.Tenant;
 import com.app.demo.repository.TenantRepository;
+import com.app.demo.service.TenantQueueLifecycleService;
 
 /**
  * For each tenant at application startup, dynamically creates:
  *   - email-queue.<tenantId>
  *   - webhook-queue.<tenantId>
  * And binds them to the notifications-exchange with tenant-specific routing keys.
+ * Also registers listeners for each tenant.
  */
 
 @Component
@@ -31,14 +33,17 @@ public class TenantQueueRegistrar {
     private final TenantRepository tenantRepository;
     private final RabbitAdmin rabbitAdmin;
     private final TopicExchange notificationsExchange;
+    private final TenantQueueLifecycleService lifecycleService;
 
     public TenantQueueRegistrar(
             TenantRepository tenantRepository, 
             RabbitAdmin rabbitAdmin, 
-            TopicExchange notificationsExchange) {
+            TopicExchange notificationsExchange,
+            TenantQueueLifecycleService lifecycleService) {
         this.tenantRepository = tenantRepository;
         this.rabbitAdmin = rabbitAdmin;
         this.notificationsExchange = notificationsExchange;
+        this.lifecycleService = lifecycleService;
     }
 
     // Runs at startup (after beans are created, but before regular listeners)
@@ -47,10 +52,12 @@ public class TenantQueueRegistrar {
     public void registerTenantQueues() {
         log.info("Registering per-tenant queues...");
         try {
-            List<Tenant> tenants = tenantRepository.findAll();
-            log.info("Found {} tenants. Setting up queues for each tenant.", tenants.size());
+            List<Tenant> tenants = tenantRepository.findAllByDeletedAtIsNull();
+            log.info("Found {} active tenants. Setting up queues for each tenant.", tenants.size());
             for (Tenant tenant : tenants) {
-                registerQueuesForTenant(tenant.getId().toString());
+                registerQueuesForTenant(tenant);
+                // Also reconcile (register listeners) for each tenant
+                lifecycleService.reconcile(tenant);
             }
             log.info("Finished registering tenant queues.");
         } catch (Exception e) {
@@ -58,39 +65,44 @@ public class TenantQueueRegistrar {
         }
     }
 
-    private void registerQueuesForTenant(String tenantId) {
+        private void registerQueuesForTenant(Tenant tenant) {
         try {
-            // Email:
+            String tenantId = tenant.getId().toString();
+
+            // Only create the queues for the channels this tenant actually uses
+            if (tenant.isEmailEnabled()) {
             String emailQueueName = "email-queue." + tenantId;
             var emailQueue = QueueBuilder.durable(emailQueueName)
-                    .withArgument("x-dead-letter-exchange", "dead-letter-exchange")
-                    .build();
+                .withArgument("x-dead-letter-exchange", "dead-letter-exchange")
+                .build();
             rabbitAdmin.declareQueue(emailQueue);
 
             String emailRoutingKey = "notification.email." + tenantId;
             Binding emailBinding = BindingBuilder
-                    .bind(emailQueue)
-                    .to(notificationsExchange)
-                    .with(emailRoutingKey);
+                .bind(emailQueue)
+                .to(notificationsExchange)
+                .with(emailRoutingKey);
             rabbitAdmin.declareBinding(emailBinding);
+            log.debug("Registered email queue for tenant {}: {}", tenantId, emailQueueName);
+            }
 
-            // Webhook:
+            if (tenant.isWebhookEnabled()) {
             String webhookQueueName = "webhook-queue." + tenantId;
             var webhookQueue = QueueBuilder.durable(webhookQueueName)
-                    .withArgument("x-dead-letter-exchange", "dead-letter-exchange")
-                    .build();
+                .withArgument("x-dead-letter-exchange", "dead-letter-exchange")
+                .build();
             rabbitAdmin.declareQueue(webhookQueue);
 
             String webhookRoutingKey = "notification.webhook." + tenantId;
             Binding webhookBinding = BindingBuilder
-                    .bind(webhookQueue)
-                    .to(notificationsExchange)
-                    .with(webhookRoutingKey);
+                .bind(webhookQueue)
+                .to(notificationsExchange)
+                .with(webhookRoutingKey);
             rabbitAdmin.declareBinding(webhookBinding);
-
-            log.debug("Registered queues for tenant {}: {} and {}", tenantId, emailQueueName, webhookQueueName);
+            log.debug("Registered webhook queue for tenant {}: {}", tenantId, webhookQueueName);
+            }
         } catch (Exception e) {
-            log.error("Failed to register queues for tenant {}: {}", tenantId, e.getMessage(), e);
+            log.error("Failed to register queues for tenant {}: {}", tenant.getId(), e.getMessage(), e);
         }
     }
 }
