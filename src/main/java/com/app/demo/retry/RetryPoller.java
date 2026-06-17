@@ -22,7 +22,7 @@ import io.micrometer.core.instrument.MeterRegistry;
 public class RetryPoller {
 
     private static final Logger log = LoggerFactory.getLogger(RetryPoller.class);
-    private static final int BATCH_SIZE = 50;
+    private static final int BATCH_SIZE = 500;
 
     private final NotificationRepository notificationRepository;
     private final RabbitTemplate rabbitTemplate;

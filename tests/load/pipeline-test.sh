@@ -152,7 +152,7 @@ while true; do
     fi
 
     # Safety timeout: 10 minutes
-    if [ "$ELAPSED" -ge 600 ]; then
+    if [ "$ELAPSED" -ge 300 ]; then
         echo ""
         echo -e "  ${RED}⏰ Timeout after ${ELAPSED}s — $STILL_PENDING still pending${NC}"
         break
