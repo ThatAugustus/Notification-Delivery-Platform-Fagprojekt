@@ -28,7 +28,7 @@
         "x": 0,
         "y": 0
       },
-      "id": 444,
+      "id": 445,
       "title": "\ud83d\udfe2 System Status",
       "type": "row"
     },
@@ -637,7 +637,7 @@
         "x": 0,
         "y": 5
       },
-      "id": 445,
+      "id": 446,
       "title": "\ud83d\udd14 HTTP API",
       "type": "row"
     },
@@ -1070,7 +1070,7 @@
         "x": 0,
         "y": 14
       },
-      "id": 446,
+      "id": 447,
       "title": "\ud83d\udc07 RabbitMQ",
       "type": "row"
     },
@@ -1750,44 +1750,14 @@
       "type": "timeseries"
     },
     {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 31
-      },
-      "id": 441,
-      "options": {},
-      "pluginVersion": "13.0.1",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
-          },
-          "editorMode": "code",
-          "expr": "rabbitmq_channel",
-          "legendFormat": "__auto",
-          "range": true,
-          "refId": "A"
-        }
-      ],
-      "title": "New panel",
-      "type": "__unconfigured-panel"
-    },
-    {
       "collapsed": false,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 39
+        "y": 31
       },
-      "id": 447,
+      "id": 448,
       "title": "pipeline troughoutput",
       "type": "row"
     },
@@ -1829,7 +1799,7 @@
             "spanNulls": false,
             "stacking": {
               "group": "A",
-              "mode": "none"
+              "mode": "normal"
             },
             "thresholdsStyle": {
               "mode": "off"
@@ -1851,12 +1821,12 @@
         }
       },
       "gridPos": {
-        "h": 9,
-        "w": 4,
+        "h": 8,
+        "w": 12,
         "x": 0,
-        "y": 40
+        "y": 32
       },
-      "id": 430,
+      "id": 443,
       "options": {
         "annotations": {
           "clustering": -1,
@@ -1882,13 +1852,85 @@
             "uid": "PBFA97CFB590B2093"
           },
           "editorMode": "code",
-          "expr": "increase(stale_notifications_recovered_total[$__rate_interval])",
-          "legendFormat": "{{label_name}}",
+          "expr": "sum(increase(http_server_requests_seconds_count{uri=\"/api/v1/notifications\", method=\"POST\"}[$__range]))",
+          "legendFormat": "http req total",
           "range": true,
           "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "editorMode": "code",
+          "expr": "sum(increase(http_server_requests_seconds_count{uri=\"/api/v1/notifications\", method=\"POST\", status=\"202\"}[$__range]))",
+          "instant": false,
+          "legendFormat": "http req total 202",
+          "range": true,
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "editorMode": "code",
+          "expr": "sum(increase(outbox_published_total[$__range]))",
+          "instant": false,
+          "legendFormat": "outbox published to rabbitMQ",
+          "range": true,
+          "refId": "C"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "editorMode": "code",
+          "expr": "sum(increase(rabbitmq_exchange_messages_published_total{exchange=\"notifications-exchange\"}[$__range]))",
+          "instant": false,
+          "legendFormat": "Notifications-exchange total",
+          "range": true,
+          "refId": "D"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "editorMode": "code",
+          "expr": "sum(increase(rabbitmq_queue_messages_published_total{queue=~\"email-queue.*|webhook-queue.*\"}[$__range]))",
+          "instant": false,
+          "legendFormat": "queues published total",
+          "range": true,
+          "refId": "E"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "editorMode": "code",
+          "expr": "sum(increase(rabbitmq_queue_messages_acked_total{queue=~\"email-queue.*|webhook-queue.*\"}[$__range]))",
+          "instant": false,
+          "legendFormat": "queue acked total",
+          "range": true,
+          "refId": "F"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "editorMode": "code",
+          "expr": "sum(increase(worker_processed_total{result=\"success\"}[$__range]))",
+          "instant": false,
+          "legendFormat": "worker success",
+          "range": true,
+          "refId": "G"
         }
       ],
-      "title": "Total Stale Notifications Recovered",
+      "title": "pipeline count in timerange (Stack)",
       "type": "timeseries"
     },
     {
@@ -1951,10 +1993,10 @@
         }
       },
       "gridPos": {
-        "h": 9,
+        "h": 8,
         "w": 4,
-        "x": 8,
-        "y": 40
+        "x": 12,
+        "y": 32
       },
       "id": 431,
       "options": {
@@ -2051,110 +2093,10 @@
         }
       },
       "gridPos": {
-        "h": 9,
-        "w": 12,
-        "x": 12,
-        "y": 40
-      },
-      "id": 440,
-      "options": {
-        "annotations": {
-          "clustering": -1,
-          "multiLane": false
-        },
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "hideZeros": false,
-          "mode": "single",
-          "sort": "none"
-        }
-      },
-      "pluginVersion": "13.0.1",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
-          },
-          "editorMode": "code",
-          "expr": "http",
-          "legendFormat": "__auto",
-          "range": true,
-          "refId": "A"
-        }
-      ],
-      "title": "New panel",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "barWidthFactor": 0.6,
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "insertNulls": false,
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "showValues": false,
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": 0
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          }
-        }
-      },
-      "gridPos": {
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 49
+        "y": 40
       },
       "id": 442,
       "options": {
@@ -2324,11 +2266,11 @@
       },
       "gridPos": {
         "h": 8,
-        "w": 12,
+        "w": 4,
         "x": 12,
-        "y": 49
+        "y": 40
       },
-      "id": 443,
+      "id": 430,
       "options": {
         "annotations": {
           "clustering": -1,
@@ -2354,85 +2296,13 @@
             "uid": "PBFA97CFB590B2093"
           },
           "editorMode": "code",
-          "expr": "sum(increase(http_server_requests_seconds_count{uri=\"/api/v1/notifications\", method=\"POST\"}[$__range]))",
-          "legendFormat": "http req total",
+          "expr": "increase(stale_notifications_recovered_total[$__rate_interval])",
+          "legendFormat": "{{label_name}}",
           "range": true,
           "refId": "A"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
-          },
-          "editorMode": "code",
-          "expr": "sum(increase(http_server_requests_seconds_count{uri=\"/api/v1/notifications\", method=\"POST\", status=\"202\"}[$__range]))",
-          "instant": false,
-          "legendFormat": "http req total 202",
-          "range": true,
-          "refId": "B"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
-          },
-          "editorMode": "code",
-          "expr": "sum(increase(outbox_published_total[$__range]))",
-          "instant": false,
-          "legendFormat": "outbox published to rabbitMQ",
-          "range": true,
-          "refId": "C"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
-          },
-          "editorMode": "code",
-          "expr": "sum(increase(rabbitmq_exchange_messages_published_total{exchange=\"notifications-exchange\"}[$__range]))",
-          "instant": false,
-          "legendFormat": "Notifications-exchange total",
-          "range": true,
-          "refId": "D"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
-          },
-          "editorMode": "code",
-          "expr": "sum(increase(rabbitmq_queue_messages_published_total{queue=~\"email-queue.*|webhook-queue.*\"}[$__range]))",
-          "instant": false,
-          "legendFormat": "queues published total",
-          "range": true,
-          "refId": "E"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
-          },
-          "editorMode": "code",
-          "expr": "sum(increase(rabbitmq_queue_messages_acked_total{queue=~\"email-queue.*|webhook-queue.*\"}[$__range]))",
-          "instant": false,
-          "legendFormat": "queue acked total",
-          "range": true,
-          "refId": "F"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
-          },
-          "editorMode": "code",
-          "expr": "sum(increase(worker_processed_total{result=\"success\"}[$__range]))",
-          "instant": false,
-          "legendFormat": "worker success",
-          "range": true,
-          "refId": "G"
         }
       ],
-      "title": "pipeline count in timerange (Stack)",
+      "title": "Total Stale Notifications Recovered",
       "type": "timeseries"
     },
     {
@@ -2441,9 +2311,9 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 57
+        "y": 48
       },
-      "id": 448,
+      "id": 449,
       "title": "DB",
       "type": "row"
     },
@@ -2536,7 +2406,7 @@
         "h": 9,
         "w": 8,
         "x": 0,
-        "y": 58
+        "y": 49
       },
       "id": 435,
       "options": {
@@ -2719,7 +2589,7 @@
         "h": 9,
         "w": 10,
         "x": 8,
-        "y": 58
+        "y": 49
       },
       "id": 438,
       "options": {
@@ -2837,7 +2707,7 @@
         "h": 8,
         "w": 8,
         "x": 0,
-        "y": 67
+        "y": 58
       },
       "id": 439,
       "options": {
@@ -2922,7 +2792,7 @@
         "h": 8,
         "w": 3,
         "x": 8,
-        "y": 67
+        "y": 58
       },
       "id": 437,
       "interval": "15",
@@ -3009,7 +2879,7 @@
         "h": 8,
         "w": 3,
         "x": 11,
-        "y": 67
+        "y": 58
       },
       "id": 436,
       "interval": "15",
@@ -3067,14 +2937,134 @@
       "type": "stat"
     },
     {
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "postgres-ndp"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "showValues": false,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "noValue": "0",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 10,
+        "x": 14,
+        "y": 58
+      },
+      "id": 444,
+      "interval": "30",
+      "options": {
+        "annotations": {
+          "clustering": -1,
+          "multiLane": false
+        },
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "13.0.1",
+      "targets": [
+        {
+          "dataset": "notification_platform",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "postgres-ndp"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  $__timeGroupAlias(updated_at, $__interval, 0),\n  COUNT(*) AS updates\nFROM notifications\nWHERE $__timeFilter(updated_at)\nGROUP BY 1\nORDER BY 1",
+          "refId": "A",
+          "sql": {
+            "columns": [
+              {
+                "parameters": [],
+                "type": "function"
+              }
+            ],
+            "groupBy": [
+              {
+                "property": {
+                  "type": "string"
+                },
+                "type": "groupBy"
+              }
+            ],
+            "limit": 50
+          }
+        }
+      ],
+      "title": "notification table updates in timeframe",
+      "type": "timeseries"
+    },
+    {
       "collapsed": false,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 75
+        "y": 66
       },
-      "id": 449,
+      "id": 450,
       "title": "\u23f1\ufe0f Scheduled Tasks (Outbox, Retry, Cleanup)",
       "type": "row"
     },
@@ -3169,7 +3159,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 76
+        "y": 67
       },
       "id": 12,
       "options": {
@@ -3269,7 +3259,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 76
+        "y": 67
       },
       "id": 13,
       "options": {
@@ -3310,9 +3300,9 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 84
+        "y": 75
       },
-      "id": 450,
+      "id": 451,
       "title": "\ud83d\uddc4\ufe0f Database (HikariCP)",
       "type": "row"
     },
@@ -3381,7 +3371,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 85
+        "y": 76
       },
       "id": 7,
       "options": {
@@ -3508,7 +3498,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 85
+        "y": 76
       },
       "id": 8,
       "options": {
@@ -3558,9 +3548,9 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 93
+        "y": 84
       },
-      "id": 451,
+      "id": 452,
       "title": "\u2615 JVM",
       "type": "row"
     },
@@ -3629,7 +3619,7 @@
         "h": 8,
         "w": 8,
         "x": 0,
-        "y": 94
+        "y": 85
       },
       "id": 9,
       "options": {
@@ -3740,7 +3730,7 @@
         "h": 8,
         "w": 8,
         "x": 8,
-        "y": 94
+        "y": 85
       },
       "id": 10,
       "options": {
@@ -3849,7 +3839,7 @@
         "h": 8,
         "w": 8,
         "x": 16,
-        "y": 94
+        "y": 85
       },
       "id": 11,
       "options": {
@@ -3899,9 +3889,9 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 102
+        "y": 93
       },
-      "id": 452,
+      "id": 453,
       "title": "\ud83d\udda5\ufe0f Host (Node Exporter)",
       "type": "row"
     },
@@ -3973,7 +3963,7 @@
         "h": 8,
         "w": 8,
         "x": 0,
-        "y": 103
+        "y": 94
       },
       "id": 14,
       "options": {
@@ -4073,7 +4063,7 @@
         "h": 8,
         "w": 8,
         "x": 8,
-        "y": 103
+        "y": 94
       },
       "id": 15,
       "options": {
@@ -4182,7 +4172,7 @@
         "h": 8,
         "w": 8,
         "x": 16,
-        "y": 103
+        "y": 94
       },
       "id": 16,
       "options": {
