@@ -76,18 +76,36 @@ public abstract class BaseNotificationWorker {
                     .description("Messages received by workers (before processing)")
                     .register(meterRegistry).increment();
 
-            // 2. Fetch Notification + Mark PROCESSING
+
+            
+
+            // 2. Fetch Notification
             final String notifId = payload.getNotificationId().toString();
             notification = notificationRepository.findById(payload.getNotificationId())
                     .orElseThrow(() -> new IllegalArgumentException("Notification not found: " + notifId));
-            
+
+            // 3. check for successful delivery attempts
+            if (deliveryAttemptRepository.existsByNotification_IdAndStatus(payload.getNotificationId(), DeliveryAttemptStatus.SUCCESS)) {
+                log.warn("Notification already successfully delivered: {}", payload.getNotificationId());
+                Counter.builder("worker.processed")
+                        .tag("channel", channelTag)
+                        .tag("result", "already_delivered")
+                        .description("Messages already successfully delivered by workers")
+                        .register(meterRegistry).increment();
+
+                notification.setStatus(NotificationStatus.DELIVERED);
+                notificationRepository.save(notification);
+                return;
+
+            }
+            // 4. Mark the notification as processing
             notification.setStatus(NotificationStatus.PROCESSING);
             notificationRepository.save(notification);
 
-            // 3. Delegate the actual delivery to the specific channel worker
+            // 5. Delegate the actual delivery to the specific channel worker
             deliver(payload, notification);
 
-            // 4. Success, Record it
+            // 6. Success, Record it
             long duration = System.currentTimeMillis() - startTime;
             notification.setStatus(NotificationStatus.DELIVERED);
             notificationRepository.save(notification);
@@ -109,7 +127,7 @@ public abstract class BaseNotificationWorker {
                     .tag("result", "success")
                     .description("Messages successfully delivered by workers")
                     .register(meterRegistry).increment();
-                    
+
             Timer.builder("worker.duration")
                     .tag("channel", channel)
                     .tag("tenant", tenantId)
