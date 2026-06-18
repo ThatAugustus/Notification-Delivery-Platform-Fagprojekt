@@ -28,7 +28,7 @@
         "x": 0,
         "y": 0
       },
-      "id": 441,
+      "id": 444,
       "title": "\ud83d\udfe2 System Status",
       "type": "row"
     },
@@ -637,7 +637,7 @@
         "x": 0,
         "y": 5
       },
-      "id": 442,
+      "id": 445,
       "title": "\ud83d\udd14 HTTP API",
       "type": "row"
     },
@@ -1070,7 +1070,7 @@
         "x": 0,
         "y": 14
       },
-      "id": 443,
+      "id": 446,
       "title": "\ud83d\udc07 RabbitMQ",
       "type": "row"
     },
@@ -1277,8 +1277,10 @@
             "type": "prometheus",
             "uid": "PBFA97CFB590B2093"
           },
+          "editorMode": "code",
           "expr": "rate(rabbitmq_failed_to_publish_total[30s])",
           "legendFormat": "failed to publish/s",
+          "range": true,
           "refId": "A"
         },
         {
@@ -1748,14 +1750,44 @@
       "type": "timeseries"
     },
     {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 31
+      },
+      "id": 441,
+      "options": {},
+      "pluginVersion": "13.0.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "editorMode": "code",
+          "expr": "rabbitmq_channel",
+          "legendFormat": "__auto",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "New panel",
+      "type": "__unconfigured-panel"
+    },
+    {
       "collapsed": false,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 31
+        "y": 39
       },
-      "id": 444,
+      "id": 447,
       "title": "pipeline troughoutput",
       "type": "row"
     },
@@ -1822,7 +1854,7 @@
         "h": 9,
         "w": 4,
         "x": 0,
-        "y": 32
+        "y": 40
       },
       "id": 430,
       "options": {
@@ -1922,7 +1954,7 @@
         "h": 9,
         "w": 4,
         "x": 8,
-        "y": 32
+        "y": 40
       },
       "id": 431,
       "options": {
@@ -2022,7 +2054,7 @@
         "h": 9,
         "w": 12,
         "x": 12,
-        "y": 32
+        "y": 40
       },
       "id": 440,
       "options": {
@@ -2060,14 +2092,358 @@
       "type": "timeseries"
     },
     {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "showValues": false,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 49
+      },
+      "id": 442,
+      "options": {
+        "annotations": {
+          "clustering": -1,
+          "multiLane": false
+        },
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "13.0.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "editorMode": "code",
+          "expr": "sum(increase(http_server_requests_seconds_count{uri=\"/api/v1/notifications\", method=\"POST\"}[$__range]))",
+          "legendFormat": "http req total",
+          "range": true,
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "editorMode": "code",
+          "expr": "sum(increase(http_server_requests_seconds_count{uri=\"/api/v1/notifications\", method=\"POST\", status=\"202\"}[$__range]))",
+          "instant": false,
+          "legendFormat": "http req total 202",
+          "range": true,
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "editorMode": "code",
+          "expr": "sum(increase(outbox_published_total[$__range]))",
+          "instant": false,
+          "legendFormat": "outbox published to rabbitMQ",
+          "range": true,
+          "refId": "C"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "editorMode": "code",
+          "expr": "sum(increase(rabbitmq_exchange_messages_published_total{exchange=\"notifications-exchange\"}[$__range]))",
+          "instant": false,
+          "legendFormat": "Notifications-exchange total",
+          "range": true,
+          "refId": "D"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "editorMode": "code",
+          "expr": "sum(increase(rabbitmq_queue_messages_published_total{queue=~\"email-queue.*|webhook-queue.*\"}[$__range]))",
+          "instant": false,
+          "legendFormat": "queues published total",
+          "range": true,
+          "refId": "E"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "editorMode": "code",
+          "expr": "sum(increase(rabbitmq_queue_messages_acked_total{queue=~\"email-queue.*|webhook-queue.*\"}[$__range]))",
+          "instant": false,
+          "legendFormat": "queue acked total",
+          "range": true,
+          "refId": "F"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "editorMode": "code",
+          "expr": "sum(increase(worker_processed_total{result=\"success\"}[$__range]))",
+          "instant": false,
+          "legendFormat": "worker success",
+          "range": true,
+          "refId": "G"
+        }
+      ],
+      "title": "pipeline count in timerange",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "showValues": false,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 49
+      },
+      "id": 443,
+      "options": {
+        "annotations": {
+          "clustering": -1,
+          "multiLane": false
+        },
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "13.0.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "editorMode": "code",
+          "expr": "sum(increase(http_server_requests_seconds_count{uri=\"/api/v1/notifications\", method=\"POST\"}[$__range]))",
+          "legendFormat": "http req total",
+          "range": true,
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "editorMode": "code",
+          "expr": "sum(increase(http_server_requests_seconds_count{uri=\"/api/v1/notifications\", method=\"POST\", status=\"202\"}[$__range]))",
+          "instant": false,
+          "legendFormat": "http req total 202",
+          "range": true,
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "editorMode": "code",
+          "expr": "sum(increase(outbox_published_total[$__range]))",
+          "instant": false,
+          "legendFormat": "outbox published to rabbitMQ",
+          "range": true,
+          "refId": "C"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "editorMode": "code",
+          "expr": "sum(increase(rabbitmq_exchange_messages_published_total{exchange=\"notifications-exchange\"}[$__range]))",
+          "instant": false,
+          "legendFormat": "Notifications-exchange total",
+          "range": true,
+          "refId": "D"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "editorMode": "code",
+          "expr": "sum(increase(rabbitmq_queue_messages_published_total{queue=~\"email-queue.*|webhook-queue.*\"}[$__range]))",
+          "instant": false,
+          "legendFormat": "queues published total",
+          "range": true,
+          "refId": "E"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "editorMode": "code",
+          "expr": "sum(increase(rabbitmq_queue_messages_acked_total{queue=~\"email-queue.*|webhook-queue.*\"}[$__range]))",
+          "instant": false,
+          "legendFormat": "queue acked total",
+          "range": true,
+          "refId": "F"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "editorMode": "code",
+          "expr": "sum(increase(worker_processed_total{result=\"success\"}[$__range]))",
+          "instant": false,
+          "legendFormat": "worker success",
+          "range": true,
+          "refId": "G"
+        }
+      ],
+      "title": "pipeline count in timerange (Stack)",
+      "type": "timeseries"
+    },
+    {
       "collapsed": false,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 41
+        "y": 57
       },
-      "id": 445,
+      "id": 448,
       "title": "DB",
       "type": "row"
     },
@@ -2160,7 +2536,7 @@
         "h": 9,
         "w": 8,
         "x": 0,
-        "y": 42
+        "y": 58
       },
       "id": 435,
       "options": {
@@ -2343,7 +2719,7 @@
         "h": 9,
         "w": 10,
         "x": 8,
-        "y": 42
+        "y": 58
       },
       "id": 438,
       "options": {
@@ -2461,7 +2837,7 @@
         "h": 8,
         "w": 8,
         "x": 0,
-        "y": 51
+        "y": 67
       },
       "id": 439,
       "options": {
@@ -2546,7 +2922,7 @@
         "h": 8,
         "w": 3,
         "x": 8,
-        "y": 51
+        "y": 67
       },
       "id": 437,
       "interval": "15",
@@ -2633,7 +3009,7 @@
         "h": 8,
         "w": 3,
         "x": 11,
-        "y": 51
+        "y": 67
       },
       "id": 436,
       "interval": "15",
@@ -2696,9 +3072,9 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 59
+        "y": 75
       },
-      "id": 446,
+      "id": 449,
       "title": "\u23f1\ufe0f Scheduled Tasks (Outbox, Retry, Cleanup)",
       "type": "row"
     },
@@ -2761,13 +3137,39 @@
             ]
           },
           "unit": "ops"
-        }
+        },
+        "overrides": [
+          {
+            "__systemRef": "hideSeriesFrom",
+            "matcher": {
+              "id": "byNames",
+              "options": {
+                "mode": "exclude",
+                "names": [
+                  "none \u2014 "
+                ],
+                "prefix": "All except:",
+                "readOnly": true
+              }
+            },
+            "properties": [
+              {
+                "id": "custom.hideFrom",
+                "value": {
+                  "legend": false,
+                  "tooltip": true,
+                  "viz": true
+                }
+              }
+            ]
+          }
+        ]
       },
       "gridPos": {
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 60
+        "y": 76
       },
       "id": 12,
       "options": {
@@ -2867,7 +3269,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 60
+        "y": 76
       },
       "id": 13,
       "options": {
@@ -2908,9 +3310,9 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 68
+        "y": 84
       },
-      "id": 447,
+      "id": 450,
       "title": "\ud83d\uddc4\ufe0f Database (HikariCP)",
       "type": "row"
     },
@@ -2979,7 +3381,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 69
+        "y": 85
       },
       "id": 7,
       "options": {
@@ -3106,7 +3508,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 69
+        "y": 85
       },
       "id": 8,
       "options": {
@@ -3156,9 +3558,9 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 77
+        "y": 93
       },
-      "id": 448,
+      "id": 451,
       "title": "\u2615 JVM",
       "type": "row"
     },
@@ -3227,7 +3629,7 @@
         "h": 8,
         "w": 8,
         "x": 0,
-        "y": 78
+        "y": 94
       },
       "id": 9,
       "options": {
@@ -3338,7 +3740,7 @@
         "h": 8,
         "w": 8,
         "x": 8,
-        "y": 78
+        "y": 94
       },
       "id": 10,
       "options": {
@@ -3447,7 +3849,7 @@
         "h": 8,
         "w": 8,
         "x": 16,
-        "y": 78
+        "y": 94
       },
       "id": 11,
       "options": {
@@ -3497,9 +3899,9 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 86
+        "y": 102
       },
-      "id": 449,
+      "id": 452,
       "title": "\ud83d\udda5\ufe0f Host (Node Exporter)",
       "type": "row"
     },
@@ -3571,7 +3973,7 @@
         "h": 8,
         "w": 8,
         "x": 0,
-        "y": 87
+        "y": 103
       },
       "id": 14,
       "options": {
@@ -3671,7 +4073,7 @@
         "h": 8,
         "w": 8,
         "x": 8,
-        "y": 87
+        "y": 103
       },
       "id": 15,
       "options": {
@@ -3780,7 +4182,7 @@
         "h": 8,
         "w": 8,
         "x": 16,
-        "y": 87
+        "y": 103
       },
       "id": 16,
       "options": {

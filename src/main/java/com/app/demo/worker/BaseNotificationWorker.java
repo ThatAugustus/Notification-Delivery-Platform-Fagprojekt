@@ -109,6 +109,7 @@ public abstract class BaseNotificationWorker {
                     .tag("result", "success")
                     .description("Messages successfully delivered by workers")
                     .register(meterRegistry).increment();
+                    
             Timer.builder("worker.duration")
                     .tag("channel", channel)
                     .tag("tenant", tenantId)
