@@ -1,0 +1,39 @@
+{
+  "base_url": "http://localhost:8080",
+  "admin_key": "dev-admin-key-change-me-in-prod",
+  "mailpit_url": "http://localhost:8025",
+  "db_container": "ndp-postgres",
+  "db_user": "dev",
+  "db_name": "notification_platform",
+
+  "load": {
+    "pattern": "ramp",
+    "rate": 150,
+    "duration_seconds": 45,
+    "channels": ["EMAIL"],
+
+    "//tenant_ids": "Existing, worker-backed tenants to spread load across. Workers/queues are registered at app STARTUP, so these must already exist when the app booted. Default is the seeded tenant. Add more startup tenants here for multi-tenant/fairness runs.",
+    "tenant_ids": ["11111111-1111-1111-1111-111111111111"],
+
+    "webhook_url": "http://host.docker.internal:8080/actuator/health"
+  },
+
+  "chaos": {
+    "enabled": false,
+    "faults": [
+      {
+        "label": "broker_outage",
+        "container": "ndp-rabbitmq",
+        "action": "pause",
+        "at_seconds": 20,
+        "duration_seconds": 15
+      }
+    ]
+  },
+
+  "limits": {
+    "drain_timeout_seconds": 300,
+    "drain_poll_seconds": 3,
+    "stall_seconds": 60
+  }
+}

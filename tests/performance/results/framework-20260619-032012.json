@@ -1,0 +1,113 @@
+{
+  "run_id": "20260619-032012",
+  "timestamp": "2026-06-19T01:25:52.956572+00:00",
+  "environment": {
+    "host": "00b98c0146",
+    "cpu": "Apple M1 Pro",
+    "ram": "16.0 GB",
+    "os": "26.5.1"
+  },
+  "baseline_db_clock": "2026-06-19 01:20:14.532297+00",
+  "config": {
+    "load": {
+      "pattern": "constant",
+      "rate": 20,
+      "duration_seconds": 5,
+      "channels": [
+        "EMAIL"
+      ],
+      "tenants": [
+        "a",
+        "b"
+      ],
+      "webhook_url": "http://host.docker.internal:8080/actuator/health"
+    },
+    "chaos": {
+      "enabled": false,
+      "faults": [
+        {
+          "label": "broker_outage",
+          "container": "ndp-rabbitmq",
+          "action": "pause",
+          "at_seconds": 20,
+          "duration_seconds": 15
+        }
+      ]
+    },
+    "limits": {
+      "drain_timeout_seconds": 300,
+      "drain_poll_seconds": 3
+    }
+  },
+  "k6": {
+    "submitted": 101,
+    "rejected": 0,
+    "submit_rate": 20.145868052542816,
+    "api_avg_ms": 24.08263366336635,
+    "api_p95_ms": 82.447,
+    "api_max_ms": 329.592,
+    "http_error_rate": 0,
+    "duration_s": 5.013435
+  },
+  "chaos_events": [],
+  "drain_seconds": 300,
+  "drain_timed_out": true,
+  "metrics": {
+    "submitted": 101,
+    "rejected": 0,
+    "accepted_db": 101,
+    "distinct_subject": 101,
+    "delivered": 0,
+    "failed": 0,
+    "nonterminal": 101,
+    "email_delivered": 0,
+    "outbox_pub": 101,
+    "outbox_unpub": 0,
+    "da_success": 0,
+    "da_fail": 0,
+    "dup_a": 0,
+    "dup_b": 0,
+    "mailpit": 0
+  },
+  "invariants": [
+    {
+      "name": "no silent loss",
+      "pass": false,
+      "detail": "101 stuck non-terminal"
+    },
+    {
+      "name": "ingest accounted",
+      "pass": true,
+      "detail": "submitted 101 vs persisted 101"
+    },
+    {
+      "name": "unique content",
+      "pass": true,
+      "detail": "101 distinct / 101 rows"
+    },
+    {
+      "name": "outbox drained",
+      "pass": true,
+      "detail": "0 unpublished"
+    },
+    {
+      "name": "no duplicate delivery (attempts)",
+      "pass": true,
+      "detail": "0 extra SUCCESS rows"
+    },
+    {
+      "name": "no duplicate delivery (mailpit/escaped)",
+      "pass": true,
+      "detail": "mailpit matches delivered"
+    }
+  ],
+  "diagnostics": {
+    "stuck": [
+      [
+        "QUEUED",
+        101
+      ]
+    ]
+  },
+  "verdict": "FAIL"
+}

@@ -2296,7 +2296,7 @@
             "uid": "PBFA97CFB590B2093"
           },
           "editorMode": "code",
-          "expr": "increase(stale_notifications_recovered_total[$__rate_interval])",
+          "expr": "sum(increase(stale_notifications_recovered_total[$__rate_interval]))",
           "legendFormat": "{{label_name}}",
           "range": true,
           "refId": "A"
