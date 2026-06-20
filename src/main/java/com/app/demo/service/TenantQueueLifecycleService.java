@@ -1,5 +1,7 @@
 package com.app.demo.service;
 
+import java.util.List;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.amqp.core.Binding;
@@ -12,11 +14,15 @@ import org.springframework.amqp.rabbit.core.RabbitAdmin;
 import org.springframework.amqp.rabbit.listener.MessageListenerContainer;
 import org.springframework.amqp.rabbit.listener.RabbitListenerContainerFactory;
 import org.springframework.amqp.rabbit.listener.RabbitListenerEndpointRegistry;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
+import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
 import com.app.demo.model.Tenant;
+import com.app.demo.repository.TenantRepository;
 import com.app.demo.worker.EmailWorker;
 import com.app.demo.worker.WebhookWorker;
 
@@ -28,6 +34,7 @@ public class TenantQueueLifecycleService {
     private final TopicExchange notificationsExchange;
     private final RabbitListenerEndpointRegistry endpointRegistry;
     private final RabbitListenerContainerFactory<? extends MessageListenerContainer> containerFactory;
+    private final TenantRepository tenantRepository;
     private final EmailWorker emailWorker;
     private final WebhookWorker webhookWorker;
     
@@ -36,15 +43,26 @@ public class TenantQueueLifecycleService {
             TopicExchange notificationsExchange,
             RabbitListenerEndpointRegistry endpointRegistry,
             RabbitListenerContainerFactory<? extends MessageListenerContainer> containerFactory,
+            TenantRepository tenantRepository,
             EmailWorker emailWorker,
             WebhookWorker webhookWorker) {
         this.rabbitAdmin = rabbitAdmin;
         this.notificationsExchange = notificationsExchange;
         this.endpointRegistry = endpointRegistry;
         this.containerFactory = containerFactory;
+        this.tenantRepository = tenantRepository;
         this.emailWorker = emailWorker;
         this.webhookWorker = webhookWorker;
-        
+    }
+
+    @EventListener(ApplicationReadyEvent.class)
+    @Order(1)
+    public void reconcileExistingTenants() {
+        List<Tenant> tenants = tenantRepository.findAllByDeletedAtIsNull();
+        log.info("Reconciling {} active tenants at startup", tenants.size());
+        for (Tenant tenant : tenants) {
+            reconcile(tenant);
+        }
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)

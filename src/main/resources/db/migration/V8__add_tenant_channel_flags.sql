@@ -1,4 +1,4 @@
--- V7: Add per-tenant channel enablement flags
+-- V8: Add per-tenant channel enablement flags
 ALTER TABLE tenants
     ADD COLUMN email_enabled BOOLEAN NOT NULL DEFAULT true,
     ADD COLUMN webhook_enabled BOOLEAN NOT NULL DEFAULT true;

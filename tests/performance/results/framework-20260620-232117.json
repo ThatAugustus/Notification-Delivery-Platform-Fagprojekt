@@ -1,0 +1,350 @@
+{
+  "run_id": "20260620-232117",
+  "timestamp": "2026-06-20T21:24:47.625136+00:00",
+  "environment": {
+    "host": "",
+    "cpu": "?",
+    "ram": "?",
+    "os": "?"
+  },
+  "baseline_db_clock": "2026-06-20 21:21:18.17728+00",
+  "config": {
+    "load": {
+      "pattern": "ramp",
+      "rate": 150,
+      "duration_seconds": 45,
+      "channels": [
+        "EMAIL"
+      ],
+      "//tenant_ids": "Existing, worker-backed tenants to spread load across. Workers/queues are registered at app STARTUP, so these must already exist when the app booted. Default is the seeded tenant. Add more startup tenants here for multi-tenant/fairness runs.",
+      "tenant_ids": [
+        "11111111-1111-1111-1111-111111111111"
+      ],
+      "webhook_url": "http://host.docker.internal:8080/actuator/health"
+    },
+    "chaos": {
+      "enabled": false,
+      "faults": [
+        {
+          "label": "broker_outage",
+          "container": "ndp-rabbitmq",
+          "action": "pause",
+          "at_seconds": 20,
+          "duration_seconds": 15
+        }
+      ]
+    },
+    "limits": {
+      "drain_timeout_seconds": 300,
+      "drain_poll_seconds": 3,
+      "stall_seconds": 60
+    }
+  },
+  "k6": {
+    "submitted": 4724,
+    "rejected": 0,
+    "submit_rate": 104.97495768385902,
+    "api_avg_ms": 17.734565791701986,
+    "api_p95_ms": 45.28095499999999,
+    "api_max_ms": 212.8881,
+    "http_error_rate": 0,
+    "duration_s": 45.001208899999995
+  },
+  "chaos_events": [],
+  "drain_seconds": 207,
+  "drain_timed_out": false,
+  "peak_delivery_rate": 100.0,
+  "active_delivery_span_s": 59,
+  "metrics": {
+    "submitted": 4724,
+    "rejected": 0,
+    "accepted_db": 4724,
+    "distinct_subject": 4724,
+    "delivered": 4724,
+    "failed": 0,
+    "nonterminal": 0,
+    "email_total": 4724,
+    "email_delivered": 4724,
+    "outbox_pub": 4724,
+    "outbox_unpub": 0,
+    "da_success": 4724,
+    "da_fail": 0,
+    "dup_a": 0,
+    "dup_b": 0,
+    "mailpit": 4724,
+    "peak_rate": 100.0,
+    "active_span": 59,
+    "delivery_per_second": [
+      [
+        0,
+        5
+      ],
+      [
+        1,
+        30
+      ],
+      [
+        2,
+        42
+      ],
+      [
+        3,
+        72
+      ],
+      [
+        4,
+        124
+      ],
+      [
+        5,
+        193
+      ],
+      [
+        6,
+        239
+      ],
+      [
+        7,
+        291
+      ],
+      [
+        8,
+        335
+      ],
+      [
+        9,
+        403
+      ],
+      [
+        10,
+        482
+      ],
+      [
+        11,
+        574
+      ],
+      [
+        12,
+        666
+      ],
+      [
+        13,
+        764
+      ],
+      [
+        14,
+        851
+      ],
+      [
+        15,
+        924
+      ],
+      [
+        16,
+        990
+      ],
+      [
+        17,
+        1078
+      ],
+      [
+        18,
+        1178
+      ],
+      [
+        19,
+        1278
+      ],
+      [
+        20,
+        1355
+      ],
+      [
+        21,
+        1453
+      ],
+      [
+        22,
+        1535
+      ],
+      [
+        23,
+        1610
+      ],
+      [
+        24,
+        1694
+      ],
+      [
+        25,
+        1778
+      ],
+      [
+        26,
+        1878
+      ],
+      [
+        27,
+        1978
+      ],
+      [
+        28,
+        2078
+      ],
+      [
+        29,
+        2178
+      ],
+      [
+        30,
+        2256
+      ],
+      [
+        31,
+        2352
+      ],
+      [
+        32,
+        2403
+      ],
+      [
+        33,
+        2489
+      ],
+      [
+        34,
+        2578
+      ],
+      [
+        35,
+        2678
+      ],
+      [
+        36,
+        2778
+      ],
+      [
+        37,
+        2878
+      ],
+      [
+        38,
+        2978
+      ],
+      [
+        39,
+        3078
+      ],
+      [
+        40,
+        3171
+      ],
+      [
+        41,
+        3246
+      ],
+      [
+        42,
+        3320
+      ],
+      [
+        43,
+        3386
+      ],
+      [
+        44,
+        3478
+      ],
+      [
+        45,
+        3578
+      ],
+      [
+        46,
+        3678
+      ],
+      [
+        47,
+        3778
+      ],
+      [
+        48,
+        3878
+      ],
+      [
+        49,
+        3978
+      ],
+      [
+        50,
+        4071
+      ],
+      [
+        51,
+        4138
+      ],
+      [
+        52,
+        4200
+      ],
+      [
+        53,
+        4278
+      ],
+      [
+        54,
+        4378
+      ],
+      [
+        55,
+        4478
+      ],
+      [
+        56,
+        4578
+      ],
+      [
+        57,
+        4678
+      ],
+      [
+        58,
+        4724
+      ]
+    ]
+  },
+  "invariants": [
+    {
+      "name": "no silent loss",
+      "pass": true,
+      "detail": "all reached terminal"
+    },
+    {
+      "name": "ingest accounted",
+      "pass": true,
+      "detail": "submitted 4724 vs persisted 4724"
+    },
+    {
+      "name": "unique mail content",
+      "pass": true,
+      "detail": "4724 distinct / 4724 rows"
+    },
+    {
+      "name": "outbox drained",
+      "pass": true,
+      "detail": "0 unpublished"
+    },
+    {
+      "name": "no duplicate delivery (attempts)",
+      "pass": true,
+      "detail": "0 extra SUCCESS rows  (0.0%)"
+    },
+    {
+      "name": "no duplicate delivery (mailpit/escaped)",
+      "pass": true,
+      "detail": "mailpit 4724 = 4724 unique emails"
+    }
+  ],
+  "diagnostics": {},
+  "verdict": "PASS"
+}

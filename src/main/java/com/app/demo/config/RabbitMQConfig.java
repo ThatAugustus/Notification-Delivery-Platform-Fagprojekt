@@ -33,6 +33,4 @@ public class RabbitMQConfig {
                 .to(deadLetterExchange)
                 .with("#"); // catch-all: any routing key
     }
-
-    // Per-tenant queues are registered dynamically by TenantQueueRegistrar.
 }
