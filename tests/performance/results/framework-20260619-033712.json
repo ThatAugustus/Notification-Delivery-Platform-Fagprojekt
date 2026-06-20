@@ -1,0 +1,113 @@
+{
+  "run_id": "20260619-033712",
+  "timestamp": "2026-06-19T01:37:54.650183+00:00",
+  "environment": {
+    "host": "00b98c0146",
+    "cpu": "Apple M1 Pro",
+    "ram": "16.0 GB",
+    "os": "26.5.1"
+  },
+  "baseline_db_clock": "2026-06-19 01:37:13.740041+00",
+  "config": {
+    "load": {
+      "pattern": "constant",
+      "rate": 30,
+      "duration_seconds": 6,
+      "channels": [
+        "EMAIL"
+      ],
+      "//tenant_ids": "Existing, worker-backed tenants to spread load across. Workers/queues are registered at app STARTUP, so these must already exist when the app booted. Default is the seeded tenant. Add more startup tenants here for multi-tenant/fairness runs.",
+      "tenant_ids": [
+        "11111111-1111-1111-1111-111111111111"
+      ],
+      "webhook_url": "http://host.docker.internal:8080/actuator/health"
+    },
+    "chaos": {
+      "enabled": false,
+      "faults": [
+        {
+          "label": "broker_outage",
+          "container": "ndp-rabbitmq",
+          "action": "pause",
+          "at_seconds": 20,
+          "duration_seconds": 15
+        }
+      ]
+    },
+    "limits": {
+      "drain_timeout_seconds": 300,
+      "drain_poll_seconds": 3
+    }
+  },
+  "k6": {
+    "submitted": 180,
+    "rejected": 0,
+    "submit_rate": 29.990637922528517,
+    "api_avg_ms": 22.575238888888883,
+    "api_p95_ms": 63.4883,
+    "api_max_ms": 195.486,
+    "http_error_rate": 0,
+    "duration_s": 6.001873
+  },
+  "chaos_events": [],
+  "drain_seconds": 30,
+  "drain_timed_out": true,
+  "metrics": {
+    "submitted": 180,
+    "rejected": 0,
+    "accepted_db": 180,
+    "distinct_subject": 180,
+    "delivered": 137,
+    "failed": 0,
+    "nonterminal": 43,
+    "email_delivered": 137,
+    "outbox_pub": 180,
+    "outbox_unpub": 0,
+    "da_success": 180,
+    "da_fail": 0,
+    "dup_a": 0,
+    "dup_b": 43,
+    "mailpit": 180
+  },
+  "invariants": [
+    {
+      "name": "no silent loss",
+      "pass": false,
+      "detail": "43 stuck non-terminal"
+    },
+    {
+      "name": "ingest accounted",
+      "pass": true,
+      "detail": "submitted 180 vs persisted 180"
+    },
+    {
+      "name": "unique content",
+      "pass": true,
+      "detail": "180 distinct / 180 rows"
+    },
+    {
+      "name": "outbox drained",
+      "pass": true,
+      "detail": "0 unpublished"
+    },
+    {
+      "name": "no duplicate delivery (attempts)",
+      "pass": true,
+      "detail": "0 extra SUCCESS rows  (0.0%)"
+    },
+    {
+      "name": "no duplicate delivery (mailpit/escaped)",
+      "pass": false,
+      "detail": "43 extra emails reached recipients"
+    }
+  ],
+  "diagnostics": {
+    "stuck": [
+      [
+        "QUEUED",
+        43
+      ]
+    ]
+  },
+  "verdict": "FAIL"
+}

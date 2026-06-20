@@ -1,0 +1,17 @@
+apiVersion: 1
+
+datasources:
+  - name: PostgreSQL
+    type: postgres
+    uid: postgres-ndp
+    url: postgres:5432
+    database: notification_platform
+    user: dev
+    secureJsonData:
+      password: "dev"
+    jsonData:
+      database: "notification_platform"
+      sslmode: 'disable'
+      postgresVersion: 15
+      timescaledb: false
+      timeInterval: "5s"

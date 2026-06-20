@@ -1,0 +1,283 @@
+{
+  "run_id": "20260619-040310",
+  "timestamp": "2026-06-19T02:06:01.313511+00:00",
+  "environment": {
+    "host": "00b98c0146",
+    "cpu": "Apple M1 Pro",
+    "ram": "16.0 GB",
+    "os": "26.5.1"
+  },
+  "baseline_db_clock": "2026-06-19 02:03:11.343106+00",
+  "config": {
+    "load": {
+      "pattern": "constant",
+      "rate": 150,
+      "duration_seconds": 20,
+      "channels": [
+        "EMAIL"
+      ],
+      "//tenant_ids": "Existing, worker-backed tenants to spread load across. Workers/queues are registered at app STARTUP, so these must already exist when the app booted. Default is the seeded tenant. Add more startup tenants here for multi-tenant/fairness runs.",
+      "tenant_ids": [
+        "11111111-1111-1111-1111-111111111111"
+      ],
+      "webhook_url": "http://host.docker.internal:8080/actuator/health"
+    },
+    "chaos": {
+      "enabled": false,
+      "faults": [
+        {
+          "label": "broker_outage",
+          "container": "ndp-rabbitmq",
+          "action": "pause",
+          "at_seconds": 20,
+          "duration_seconds": 15
+        }
+      ]
+    },
+    "limits": {
+      "drain_timeout_seconds": 300,
+      "drain_poll_seconds": 3,
+      "stall_seconds": 60
+    }
+  },
+  "k6": {
+    "submitted": 3000,
+    "rejected": 0,
+    "submit_rate": 149.98681615885965,
+    "api_avg_ms": 33.61838500000006,
+    "api_p95_ms": 168.61419999999998,
+    "api_max_ms": 425.274,
+    "http_error_rate": 0,
+    "duration_s": 20.001758000000002
+  },
+  "chaos_events": [],
+  "drain_seconds": 168,
+  "drain_timed_out": false,
+  "peak_delivery_rate": 81.7,
+  "delivered_timeseries": [
+    [
+      20.9,
+      1476
+    ],
+    [
+      24.5,
+      1716
+    ],
+    [
+      29.3,
+      1992
+    ],
+    [
+      32.9,
+      2326
+    ],
+    [
+      36.3,
+      2567
+    ],
+    [
+      39.9,
+      2589
+    ],
+    [
+      43.3,
+      2589
+    ],
+    [
+      46.8,
+      2589
+    ],
+    [
+      50.3,
+      2589
+    ],
+    [
+      53.8,
+      2589
+    ],
+    [
+      57.3,
+      2589
+    ],
+    [
+      60.7,
+      2589
+    ],
+    [
+      64.2,
+      2589
+    ],
+    [
+      67.6,
+      2589
+    ],
+    [
+      71.1,
+      2589
+    ],
+    [
+      74.5,
+      2589
+    ],
+    [
+      78.0,
+      2589
+    ],
+    [
+      81.4,
+      2589
+    ],
+    [
+      85.1,
+      2589
+    ],
+    [
+      88.6,
+      2589
+    ],
+    [
+      92.0,
+      2589
+    ],
+    [
+      95.5,
+      2589
+    ],
+    [
+      99.0,
+      2589
+    ],
+    [
+      102.4,
+      2589
+    ],
+    [
+      106.0,
+      2589
+    ],
+    [
+      109.5,
+      2589
+    ],
+    [
+      112.9,
+      2589
+    ],
+    [
+      116.3,
+      2589
+    ],
+    [
+      119.7,
+      2589
+    ],
+    [
+      123.2,
+      2589
+    ],
+    [
+      127.0,
+      2589
+    ],
+    [
+      130.5,
+      2589
+    ],
+    [
+      133.9,
+      2589
+    ],
+    [
+      137.6,
+      2742
+    ],
+    [
+      141.0,
+      2742
+    ],
+    [
+      144.5,
+      2742
+    ],
+    [
+      147.9,
+      2742
+    ],
+    [
+      151.4,
+      2742
+    ],
+    [
+      155.1,
+      2742
+    ],
+    [
+      158.5,
+      2742
+    ],
+    [
+      161.9,
+      2742
+    ],
+    [
+      165.3,
+      2742
+    ],
+    [
+      168.8,
+      3000
+    ]
+  ],
+  "metrics": {
+    "submitted": 3000,
+    "rejected": 0,
+    "accepted_db": 3000,
+    "distinct_subject": 3000,
+    "delivered": 3000,
+    "failed": 0,
+    "nonterminal": 0,
+    "email_total": 3000,
+    "email_delivered": 3000,
+    "outbox_pub": 3000,
+    "outbox_unpub": 0,
+    "da_success": 3000,
+    "da_fail": 0,
+    "dup_a": 0,
+    "dup_b": 0,
+    "mailpit": 3000
+  },
+  "invariants": [
+    {
+      "name": "no silent loss",
+      "pass": true,
+      "detail": "all reached terminal"
+    },
+    {
+      "name": "ingest accounted",
+      "pass": true,
+      "detail": "submitted 3000 vs persisted 3000"
+    },
+    {
+      "name": "unique content",
+      "pass": true,
+      "detail": "3000 distinct / 3000 rows"
+    },
+    {
+      "name": "outbox drained",
+      "pass": true,
+      "detail": "0 unpublished"
+    },
+    {
+      "name": "no duplicate delivery (attempts)",
+      "pass": true,
+      "detail": "0 extra SUCCESS rows  (0.0%)"
+    },
+    {
+      "name": "no duplicate delivery (mailpit/escaped)",
+      "pass": true,
+      "detail": "mailpit 3000 = 3000 unique emails"
+    }
+  ],
+  "diagnostics": {},
+  "verdict": "PASS"
+}
