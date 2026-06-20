@@ -7,6 +7,7 @@ import java.util.UUID;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,20 +23,25 @@ public class TenantManagementService {
     private static final Logger log = LoggerFactory.getLogger(TenantManagementService.class);
 
     private final TenantRepository tenantRepository;
+    private final ApplicationEventPublisher eventPublisher;
     private final SecureRandom secureRandom = new SecureRandom();
 
-    public TenantManagementService(TenantRepository tenantRepository) {
+    public TenantManagementService(TenantRepository tenantRepository, ApplicationEventPublisher eventPublisher) {
         this.tenantRepository = tenantRepository;
+        this.eventPublisher = eventPublisher;
     }
 
     @Transactional
     public Tenant create(CreateTenantRequest request) {
         Tenant tenant = new Tenant(request.getName());
         tenant.setDefaultFromEmail(request.getDefaultFromEmail());
+        tenant.setEmailEnabled(request.getEmailEnabled() == null || request.getEmailEnabled());
+        tenant.setWebhookEnabled(request.getWebhookEnabled() == null || request.getWebhookEnabled());
         tenant.setWebhookSecret(generateWebhookSecret());
 
         Tenant saved = tenantRepository.save(tenant);
         log.info("Created tenant: id={} name={}", saved.getId(), saved.getName());
+        eventPublisher.publishEvent(new TenantLifecycleEvent(saved, TenantLifecycleEvent.Action.CREATED));
         return saved;
     }
 
@@ -64,8 +70,15 @@ public class TenantManagementService {
         if (request.getDefaultFromEmail() != null) {
             tenant.setDefaultFromEmail(request.getDefaultFromEmail());
         }
+        if (request.getEmailEnabled() != null) {
+            tenant.setEmailEnabled(request.getEmailEnabled());
+        }
+        if (request.getWebhookEnabled() != null) {
+            tenant.setWebhookEnabled(request.getWebhookEnabled());
+        }
 
         log.info("Updated tenant: id={}", id);
+        eventPublisher.publishEvent(new TenantLifecycleEvent(tenant, TenantLifecycleEvent.Action.UPDATED));
         return tenant; // managed entity, so changes flush on transaction commit
     }
 
@@ -74,6 +87,7 @@ public class TenantManagementService {
         Tenant tenant = getActive(id);
         tenant.softDelete();
         log.info("Soft-deleted tenant: id={}", id);
+        eventPublisher.publishEvent(new TenantLifecycleEvent(tenant, TenantLifecycleEvent.Action.SOFT_DELETED));
     }
 
     @Transactional
@@ -86,6 +100,7 @@ public class TenantManagementService {
         }
         tenant.restore();
         log.info("Restored tenant: id={}", id);
+        eventPublisher.publishEvent(new TenantLifecycleEvent(tenant, TenantLifecycleEvent.Action.RESTORED));
         return tenant;
     }
 

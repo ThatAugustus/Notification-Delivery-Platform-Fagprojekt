@@ -16,4 +16,8 @@ public class UpdateTenantRequest {
 
     @Email(message = "defaultFromEmail must be a valid email address")
     private String defaultFromEmail;
+
+    // Allow toggling channels after creation
+    private Boolean emailEnabled;
+    private Boolean webhookEnabled;
 }

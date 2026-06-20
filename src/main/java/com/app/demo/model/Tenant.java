@@ -35,6 +35,12 @@ public class Tenant {
     @Column(name = "webhook_secret")
     private String webhookSecret;
 
+    @Column(name = "email_enabled", nullable = false)
+    private boolean emailEnabled = true;
+
+    @Column(name = "webhook_enabled", nullable = false)
+    private boolean webhookEnabled = true;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt = Instant.now();
 
