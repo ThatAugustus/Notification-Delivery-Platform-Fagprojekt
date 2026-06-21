@@ -9,6 +9,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.app.demo.service.TenantQueueLifecycleService;
 import com.app.demo.dto.NotificationPayload;
 import com.app.demo.model.Notification;
 import com.app.demo.model.enums.NotificationStatus;
@@ -27,16 +28,19 @@ public class RetryPoller {
     private final NotificationRepository notificationRepository;
     private final RabbitTemplate rabbitTemplate;
     private final ObjectMapper objectMapper;
+    private final TenantQueueLifecycleService queueLifecycleService;
     private final Counter requeuedCounter;
 
     public RetryPoller(
             NotificationRepository notificationRepository,
             RabbitTemplate rabbitTemplate,
             ObjectMapper objectMapper,
+            TenantQueueLifecycleService queueLifecycleService,
             MeterRegistry meterRegistry) {
         this.notificationRepository = notificationRepository;
         this.rabbitTemplate = rabbitTemplate;
         this.objectMapper = objectMapper;
+        this.queueLifecycleService = queueLifecycleService;
         this.requeuedCounter = Counter.builder("retry.requeued")
                 .description("Messages re-queued by the retry poller")
                 .register(meterRegistry);
@@ -55,8 +59,9 @@ public class RetryPoller {
         for (Notification notification : due) {
             try {
                 String payload = buildPayload(notification);
-                String routingKey = "notification." + notification.getChannel().name().toLowerCase() + 
-                                    "." + notification.getTenant().getId(); // form: "notification.<channel>.<tenantId>"
+                String routingKey = queueLifecycleService.routingKeyFor(
+                        notification.getChannel(),
+                        notification.getTenant().getId());
 
                 rabbitTemplate.convertAndSend("notifications-exchange", routingKey, payload);
 

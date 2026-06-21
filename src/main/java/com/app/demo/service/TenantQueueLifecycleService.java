@@ -21,7 +21,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
+import com.app.demo.config.NotificationQueueConfig;
+import com.app.demo.config.NotificationQueueNaming;
+import com.app.demo.config.QueueStrategyMode;
 import com.app.demo.model.Tenant;
+import com.app.demo.model.enums.NotificationChannel;
 import com.app.demo.repository.TenantRepository;
 import com.app.demo.worker.EmailWorker;
 import com.app.demo.worker.WebhookWorker;
@@ -37,6 +41,7 @@ public class TenantQueueLifecycleService {
     private final TenantRepository tenantRepository;
     private final EmailWorker emailWorker;
     private final WebhookWorker webhookWorker;
+    private final NotificationQueueConfig notificationQueueConfig;
     
     public TenantQueueLifecycleService(
             RabbitAdmin rabbitAdmin,
@@ -45,7 +50,8 @@ public class TenantQueueLifecycleService {
             RabbitListenerContainerFactory<? extends MessageListenerContainer> containerFactory,
             TenantRepository tenantRepository,
             EmailWorker emailWorker,
-            WebhookWorker webhookWorker) {
+            WebhookWorker webhookWorker,
+            NotificationQueueConfig notificationQueueConfig) {
         this.rabbitAdmin = rabbitAdmin;
         this.notificationsExchange = notificationsExchange;
         this.endpointRegistry = endpointRegistry;
@@ -53,11 +59,22 @@ public class TenantQueueLifecycleService {
         this.tenantRepository = tenantRepository;
         this.emailWorker = emailWorker;
         this.webhookWorker = webhookWorker;
+        this.notificationQueueConfig = notificationQueueConfig;
     }
 
     @EventListener(ApplicationReadyEvent.class)
     @Order(1)
     public void reconcileExistingTenants() {
+        if (notificationQueueConfig.isShared()) {
+            List<Tenant> tenants = tenantRepository.findAllByDeletedAtIsNull();
+            log.info("Switching to shared notification queues; removing tenant-specific queues for {} active tenants", tenants.size());
+            for (Tenant tenant : tenants) {
+                removeTenantResources(tenant.getId().toString());
+            }
+            ensureSharedTopology();
+            return;
+        }
+
         List<Tenant> tenants = tenantRepository.findAllByDeletedAtIsNull();
         log.info("Reconciling {} active tenants at startup", tenants.size());
         for (Tenant tenant : tenants) {
@@ -78,6 +95,11 @@ public class TenantQueueLifecycleService {
 
     // Reconcile desired state for a single tenant: create or remove queues/listeners as needed
     public void reconcile(Tenant tenant) {
+        if (notificationQueueConfig.isShared()) {
+            ensureSharedTopology();
+            return;
+        }
+
         String tenantId = tenant.getId().toString();
 
         if (tenant.isDeleted()) {
@@ -86,18 +108,46 @@ public class TenantQueueLifecycleService {
         }
 
         if (tenant.isEmailEnabled()) {
-            ensureQueueAndListener("email-queue." + tenantId, "email-listener-" + tenantId,
-                    "notification.email." + tenantId, (msg) -> emailWorker.listen(msg));
+            ensureQueueAndListener(
+                    NotificationQueueNaming.queueName(NotificationChannel.EMAIL, tenant.getId(), QueueStrategyMode.PER_TENANT),
+                    NotificationQueueNaming.listenerId(NotificationChannel.EMAIL, tenant.getId(), QueueStrategyMode.PER_TENANT),
+                    NotificationQueueNaming.routingKey(NotificationChannel.EMAIL, tenant.getId(), QueueStrategyMode.PER_TENANT),
+                    (msg) -> emailWorker.listen(msg));
         } else {
-            removeQueueAndListener("email-queue." + tenantId, "email-listener-" + tenantId);
+            removeQueueAndListener(
+                    NotificationQueueNaming.queueName(NotificationChannel.EMAIL, tenant.getId(), QueueStrategyMode.PER_TENANT),
+                    NotificationQueueNaming.listenerId(NotificationChannel.EMAIL, tenant.getId(), QueueStrategyMode.PER_TENANT));
         }
 
         if (tenant.isWebhookEnabled()) {
-            ensureQueueAndListener("webhook-queue." + tenantId, "webhook-listener-" + tenantId,
-                    "notification.webhook." + tenantId, (msg) -> webhookWorker.listen(msg));
+            ensureQueueAndListener(
+                    NotificationQueueNaming.queueName(NotificationChannel.WEBHOOK, tenant.getId(), QueueStrategyMode.PER_TENANT),
+                    NotificationQueueNaming.listenerId(NotificationChannel.WEBHOOK, tenant.getId(), QueueStrategyMode.PER_TENANT),
+                    NotificationQueueNaming.routingKey(NotificationChannel.WEBHOOK, tenant.getId(), QueueStrategyMode.PER_TENANT),
+                    (msg) -> webhookWorker.listen(msg));
         } else {
-            removeQueueAndListener("webhook-queue." + tenantId, "webhook-listener-" + tenantId);
+            removeQueueAndListener(
+                    NotificationQueueNaming.queueName(NotificationChannel.WEBHOOK, tenant.getId(), QueueStrategyMode.PER_TENANT),
+                    NotificationQueueNaming.listenerId(NotificationChannel.WEBHOOK, tenant.getId(), QueueStrategyMode.PER_TENANT));
         }
+    }
+
+    public String routingKeyFor(NotificationChannel channel, java.util.UUID tenantId) {
+        return NotificationQueueNaming.routingKey(channel, tenantId, notificationQueueConfig.getMode());
+    }
+
+    private void ensureSharedTopology() {
+        ensureQueueAndListener(
+                NotificationQueueNaming.queueName(NotificationChannel.EMAIL, null, QueueStrategyMode.SHARED),
+                NotificationQueueNaming.listenerId(NotificationChannel.EMAIL, null, QueueStrategyMode.SHARED),
+                NotificationQueueNaming.routingKey(NotificationChannel.EMAIL, null, QueueStrategyMode.SHARED),
+                (msg) -> emailWorker.listen(msg));
+
+        ensureQueueAndListener(
+                NotificationQueueNaming.queueName(NotificationChannel.WEBHOOK, null, QueueStrategyMode.SHARED),
+                NotificationQueueNaming.listenerId(NotificationChannel.WEBHOOK, null, QueueStrategyMode.SHARED),
+                NotificationQueueNaming.routingKey(NotificationChannel.WEBHOOK, null, QueueStrategyMode.SHARED),
+                (msg) -> webhookWorker.listen(msg));
     }
 
     private void ensureQueueAndListener(String queueName, String listenerId, String routingKey, java.util.function.Consumer<Message> handler) {

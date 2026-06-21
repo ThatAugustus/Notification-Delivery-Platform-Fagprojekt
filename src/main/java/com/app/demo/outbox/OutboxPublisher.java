@@ -10,6 +10,7 @@ import org.springframework.scheduling.annotation.Scheduled; // Mapped Diagnostic
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.app.demo.service.TenantQueueLifecycleService;
 import com.app.demo.model.OutboxEvent;
 import com.app.demo.model.enums.NotificationStatus;
 import com.app.demo.repository.NotificationRepository;
@@ -27,15 +28,18 @@ public class OutboxPublisher {
     private final OutboxEventRepository outboxEventRepository;
     private final NotificationRepository notificationRepository;
     private final RabbitTemplate rabbitTemplate;
+    private final TenantQueueLifecycleService queueLifecycleService;
     private final Counter publishedCounter;
 
     public OutboxPublisher(OutboxEventRepository outboxEventRepository, 
                            NotificationRepository notificationRepository, 
                            RabbitTemplate rabbitTemplate,
+                           TenantQueueLifecycleService queueLifecycleService,
                            MeterRegistry meterRegistry) {
         this.outboxEventRepository = outboxEventRepository;
         this.notificationRepository = notificationRepository;
         this.rabbitTemplate = rabbitTemplate;
+        this.queueLifecycleService = queueLifecycleService;
         this.publishedCounter = Counter.builder("outbox.published")
                 .description("Messages published to queue by the outbox poller")
                 .register(meterRegistry);
@@ -49,8 +53,9 @@ public class OutboxPublisher {
         for (OutboxEvent event : pending) {
             MDC.put("notificationId", event.getNotification().getId().toString());
             try {
-                String routingKey = "notification." + event.getNotification().getChannel().name().toLowerCase() + 
-                                    "." + event.getNotification().getTenant().getId(); // form: "notification.<channel>.<tenantId>"
+                String routingKey = queueLifecycleService.routingKeyFor(
+                    event.getNotification().getChannel(),
+                    event.getNotification().getTenant().getId());
 
                 rabbitTemplate.convertAndSend(
                         "notifications-exchange",
