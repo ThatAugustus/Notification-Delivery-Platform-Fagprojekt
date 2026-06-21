@@ -15,6 +15,39 @@
       }
     ]
   },
+  "templating": {
+    "list": [
+      {
+        "current": {
+          "selected": true,
+          "text": "per-tenant",
+          "value": "^(dead-letter-queue|email-queue\\\\..+|webhook-queue\\\\..+)$"
+        },
+        "description": "Select the queue naming strategy of the currently running build",
+        "hide": 0,
+        "includeAll": false,
+        "label": "Queue strategy",
+        "multi": false,
+        "name": "queue_pattern",
+        "options": [
+          {
+            "selected": true,
+            "text": "per-tenant",
+            "value": "^(dead-letter-queue|email-queue\\\\..+|webhook-queue\\\\..+)$"
+          },
+          {
+            "text": "shared",
+            "value": "^(dead-letter-queue|email-queue|webhook-queue)$"
+          }
+        ],
+        "query": "per-tenant : ^(dead-letter-queue|email-queue\\\\..+|webhook-queue\\\\..+)$, shared : ^(dead-letter-queue|email-queue|webhook-queue)$",
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "type": "custom"
+      }
+    ]
+  },
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
@@ -1635,7 +1668,7 @@
             "uid": "PBFA97CFB590B2093"
           },
           "editorMode": "code",
-          "expr": "rabbitmq_queue_messages_ready",
+          "expr": "rabbitmq_queue_messages_ready{queue=~\"${queue_pattern:raw}\"}",
           "interval": "",
           "legendFormat": "__auto",
           "range": true,
@@ -1739,7 +1772,7 @@
             "uid": "PBFA97CFB590B2093"
           },
           "editorMode": "code",
-          "expr": "rabbitmq_queue_messages_unacked",
+          "expr": "rabbitmq_queue_messages_unacked{queue=~\"${queue_pattern:raw}\"}",
           "interval": "",
           "legendFormat": "__auto",
           "range": true,
