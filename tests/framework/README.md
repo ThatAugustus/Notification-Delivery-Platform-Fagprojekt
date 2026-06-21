@@ -64,6 +64,30 @@ For report-grade performance claims you still need (deliberately *not* in this t
 Use this to catch regressions and find *where* to dig; use Grafana +
 `pg_stat_statements` to find *why*.
 
+### pg_statements_guide
+
+``` bash
+# Connect to postgres docker container in terminal
+docker exec -it ndp-postgres psql -U dev -d notification_platform
+
+# to exit psql:
+/q
+```
+
+```sql
+-- Check if pg_stat_statements is enabled
+SELECT extname
+FROM pg_extension
+WHERE extname = 'pg_stat_statements';
+
+-- Show the most expensive queries
+SELECT calls, total_exec_time, mean_exec_time, query
+FROM pg_stat_statements
+ORDER BY total_exec_time DESC
+LIMIT 10;
+```
+
+
 ## Comparing two runs (did my optimization help?)
 
 Every run writes a JSON scorecard. Diff two of them:
