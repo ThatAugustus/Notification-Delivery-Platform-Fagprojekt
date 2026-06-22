@@ -21,6 +21,7 @@ Stdlib only — no pip installs. Needs: python3, k6, docker.
 """
 
 import argparse
+import base64
 import json
 import os
 import subprocess
@@ -60,6 +61,10 @@ class Ctx:
         self.db_container = cfg["db_container"]
         self.db_user = cfg["db_user"]
         self.db_name = cfg["db_name"]
+        self.app_container = cfg.get("app_container", "ndp-app")
+        self.rabbit_mgmt_url = cfg.get("rabbit_mgmt_url", "http://localhost:15673").rstrip("/")
+        self.rabbit_user = cfg.get("rabbit_user", "dev")
+        self.rabbit_pass = cfg.get("rabbit_pass", "dev")
         self.load = cfg["load"]
         self.chaos = cfg["chaos"]
         self.limits = cfg["limits"]
@@ -114,6 +119,9 @@ def http_json(method, url, headers=None, body=None, timeout=30):
             return e.code, json.loads(raw)
         except Exception:
             return e.code, raw
+    except (urllib.error.URLError, OSError):
+        # connection refused / unreachable (e.g. app mid-restart) — let callers retry
+        return 0, None
 
 
 def mailpit_count(ctx, run_id):
@@ -183,46 +191,136 @@ def preflight(ctx):
             sys.exit(1)
     print(c("  ✓ no backlog (clean start)", G))
 
-    baseline = psql(ctx, "SELECT now()")[0][0]
-    print(f"  baseline (DB clock): {c(baseline, Y)}")
-    return baseline
 
-
-def provision_keys(ctx, run_id):
-    """Mint a fresh API key on each configured (worker-backed) tenant.
-
-    We deliberately do NOT create new tenants: per-tenant queues + workers are
-    registered only at app startup, so a runtime-created tenant has no consumer
-    and its messages get stuck. So we reuse existing tenants and just add a
-    throwaway key, revoked at teardown. Run isolation comes from the baseline
-    timestamp + the unique run_id in every message.
-    """
-    head("PHASE 2 · Provision API keys (on existing worker-backed tenants)")
+def list_tenants(ctx):
+    """name -> id for all active tenants."""
     hdr = {"X-Admin-Key": ctx.admin_key}
+    st, data = http_json("GET", f"{ctx.base_url}/api/v1/admin/tenants", hdr)
+    if st != 200 or not isinstance(data, list):
+        return {}
+    return {t["name"]: t["id"] for t in data}
+
+
+def ensure_tenant(ctx, name, existing):
+    """Return the id of tenant `name`, creating it if missing."""
+    if name in existing:
+        return existing[name], False
+    hdr = {"X-Admin-Key": ctx.admin_key}
+    st, t = http_json("POST", f"{ctx.base_url}/api/v1/admin/tenants", hdr,
+                      {"name": name, "defaultFromEmail": f"{name}@ndp-test.local"})
+    if st != 201:
+        print(c(f"  ✗ failed to create tenant {name}: HTTP {st} {t}", R))
+        sys.exit(1)
+    return t["id"], True
+
+
+def rabbit_queue_consumers(ctx):
+    """queue_name -> consumer count, via the RabbitMQ management API."""
+    auth = base64.b64encode(f"{ctx.rabbit_user}:{ctx.rabbit_pass}".encode()).decode()
+    st, data = http_json("GET", f"{ctx.rabbit_mgmt_url}/api/queues",
+                         {"Authorization": f"Basic {auth}"})
+    if st != 200 or not isinstance(data, list):
+        return {}
+    return {q["name"]: q.get("consumers", 0) for q in data}
+
+
+def tenants_needing_workers(ctx, tids, channels):
+    """Which tenant ids lack a consumer on a queue for one of their channels."""
+    consumers = rabbit_queue_consumers(ctx)
+    prefixes = []
+    if "EMAIL" in channels:
+        prefixes.append("email-queue.")
+    if "WEBHOOK" in channels:
+        prefixes.append("webhook-queue.")
+    missing = []
+    for tid in tids:
+        for p in prefixes:
+            if consumers.get(f"{p}{tid}", 0) < 1:
+                missing.append(tid)
+                break
+    return missing
+
+
+def wait_app_health(ctx, timeout=150):
+    waited = 0
+    while waited < timeout:
+        st, data = http_json("GET", f"{ctx.base_url}/actuator/health")
+        if st == 200 and isinstance(data, dict) and data.get("status") == "UP":
+            return True
+        time.sleep(3)
+        waited += 3
+    return False
+
+
+def restart_app(ctx):
+    print(c(f"  ↻ restarting {ctx.app_container} so new tenants' workers register…", Y))
+    p = run(["docker", "restart", ctx.app_container])
+    if p.returncode != 0:
+        print(c(f"  ✗ could not restart {ctx.app_container}: {p.stderr.strip()}\n"
+                "    (Are you running the app via gradle instead of docker? Restart it "
+                "manually so workers register, then re-run.)", R))
+        sys.exit(1)
+    if not wait_app_health(ctx):
+        print(c("  ✗ app did not become healthy after restart", R))
+        sys.exit(1)
+    print(c("  ✓ app healthy again", G))
+
+
+def provision_tenants(ctx, run_id):
+    """Ensure every configured tenant exists & has registered workers, then mint
+    a throwaway key on each. Tenants persist between runs (reused, not deleted);
+    only the keys are throwaway. Restarts the app only when a configured tenant
+    lacks workers (workers register at startup), so repeat runs are cheap.
+    """
+    head("PHASE 2 · Provision tenants")
+    specs = ctx.load["tenants"]
+    existing = list_tenants(ctx)
+
+    # 1. ensure each tenant exists
     targets = []
-    for tid in ctx.load["tenant_ids"]:
-        st, t = http_json("GET", f"{ctx.base_url}/api/v1/admin/tenants/{tid}", hdr)
-        if st != 200:
-            print(c(f"  ✗ tenant {tid} not found/active (HTTP {st}). It must exist and have "
-                    "been present at app startup so its workers are registered.", R))
+    created_any = False
+    for spec in specs:
+        name = spec["name"]
+        weight = int(spec.get("weight", 1))
+        tid, created = ensure_tenant(ctx, name, existing)
+        created_any = created_any or created
+        targets.append({"name": name, "id": tid, "weight": weight})
+        print(c(f"  {'＋ created' if created else '✓ reuse  '} {name}  ({tid})", G if not created else Y))
+
+    # 2. restart only if any tenant lacks workers
+    tids = [t["id"] for t in targets]
+    missing = tenants_needing_workers(ctx, tids, ctx.load["channels"])
+    if missing:
+        print(c(f"  {len(missing)} tenant(s) have no registered workers yet", Y))
+        restart_app(ctx)
+        still = tenants_needing_workers(ctx, tids, ctx.load["channels"])
+        if still:
+            print(c(f"  ✗ {len(still)} tenant(s) still have no workers after restart — "
+                    "worker registration may be broken.", R))
             sys.exit(1)
-        st, k = http_json("POST", f"{ctx.base_url}/api/v1/admin/tenants/{tid}/api-keys",
+    print(c("  ✓ all tenants have registered workers", G))
+
+    # 3. mint a throwaway key on each
+    hdr = {"X-Admin-Key": ctx.admin_key}
+    for t in targets:
+        st, k = http_json("POST", f"{ctx.base_url}/api/v1/admin/tenants/{t['id']}/api-keys",
                           hdr, {"name": f"ndp-test-{run_id}"})
         if st != 201:
-            print(c(f"  ✗ failed to mint api key for {tid}: HTTP {st} {k}", R))
+            print(c(f"  ✗ failed to mint api key for {t['name']}: HTTP {st} {k}", R))
             sys.exit(1)
-        targets.append({"name": t.get("name", tid), "id": tid,
-                        "apiKey": k["rawKey"], "keyId": k["id"]})
-        print(c(f"  ✓ {t.get('name', tid)}  ({tid})", G))
+        t["apiKey"] = k["rawKey"]
+        t["keyId"] = k["id"]
     return targets
 
 
 def teardown_keys(ctx, targets):
     hdr = {"X-Admin-Key": ctx.admin_key}
+    n = 0
     for t in targets:
         if t.get("keyId"):
             http_json("DELETE", f"{ctx.base_url}/api/v1/admin/tenants/{t['id']}/api-keys/{t['keyId']}", hdr)
-    print(c(f"  ✓ revoked {len(targets)} throwaway test key(s); tenants untouched", DIM))
+            n += 1
+    print(c(f"  ✓ revoked {n} throwaway test key(s); tenants kept for reuse", DIM))
 
 
 def chaos_worker(ctx, fault, events, start_monotonic):
@@ -271,7 +369,7 @@ def run_load(ctx, run_id, targets):
     summary_out = os.path.join(HERE, f".summary-{run_id}.json")
     env = dict(os.environ)
     env["NDP_CFG"] = json.dumps(cfg)
-    env["NDP_TARGETS"] = json.dumps([{"name": t["name"], "apiKey": t["apiKey"]} for t in targets])
+    env["NDP_TARGETS"] = json.dumps([{"name": t["name"], "apiKey": t["apiKey"], "weight": t.get("weight", 1)} for t in targets])
     env["NDP_SUMMARY_OUT"] = summary_out
 
     events = []
@@ -338,6 +436,62 @@ def scope_clause(tids, baseline, alias=""):
     p = f"{alias}." if alias else ""
     ids = ", ".join(repr(t) for t in tids)
     return f"{p}tenant_id IN ({ids}) AND {p}created_at >= '{baseline}'"
+
+
+def per_tenant_metrics(ctx, tids, baseline):
+    """Per-tenant delivered count, peak throughput, and end-to-end latency
+    (delivered_at − created_at) percentiles. End-to-end latency comes straight
+    from existing columns — no stage instrumentation needed. This is the basis
+    for the fairness test: a starved tenant shows up as a blown-out p95.
+    """
+    out = []
+    for tid in tids:
+        s1 = scope_clause([tid], baseline)
+        js = scope_clause([tid], baseline, alias="n")
+        total = psql_int(ctx, f"SELECT COUNT(*) FROM notifications WHERE {s1}")
+        delivered = psql_int(ctx, f"SELECT COUNT(*) FROM notifications WHERE {s1} AND status='DELIVERED'")
+        rows = psql(ctx, f"""
+            SELECT
+              percentile_cont(0.5)  WITHIN GROUP (ORDER BY EXTRACT(EPOCH FROM (d.attempted_at - n.created_at))),
+              percentile_cont(0.95) WITHIN GROUP (ORDER BY EXTRACT(EPOCH FROM (d.attempted_at - n.created_at)))
+            FROM notifications n JOIN delivery_attempts d
+              ON d.notification_id = n.id AND d.status = 'SUCCESS'
+            WHERE {js}""")
+        p50 = float(rows[0][0]) if rows and rows[0] and rows[0][0] else 0.0
+        p95 = float(rows[0][1]) if rows and rows[0] and len(rows[0]) > 1 and rows[0][1] else 0.0
+        prof = delivery_profile(ctx, js)
+        avg_rate = round(delivered / prof["active_span"], 1) if prof["active_span"] else 0.0
+        out.append({"tenant_id": tid, "total": total, "delivered": delivered,
+                    "peak_rate": prof["peak_rate"], "avg_rate": avg_rate,
+                    "p50_latency_s": round(p50, 2), "p95_latency_s": round(p95, 2)})
+    return out
+
+
+def latency_breakdown(ctx, jscope):
+    """Decompose end-to-end latency into the two stages we can see from existing
+    columns:  accept→published (outbox-publisher backlog) and published→delivered
+    (per-tenant queue + worker).  This is what reveals WHERE the time goes —
+    e.g. it showed the outbox publisher, not the workers, is the bottleneck.
+    """
+    rows = psql(ctx, f"""
+        SELECT
+          percentile_cont(0.5)  WITHIN GROUP (ORDER BY EXTRACT(EPOCH FROM (o.published_at - n.created_at))),
+          percentile_cont(0.95) WITHIN GROUP (ORDER BY EXTRACT(EPOCH FROM (o.published_at - n.created_at))),
+          percentile_cont(0.5)  WITHIN GROUP (ORDER BY EXTRACT(EPOCH FROM (d.attempted_at - o.published_at))),
+          percentile_cont(0.95) WITHIN GROUP (ORDER BY EXTRACT(EPOCH FROM (d.attempted_at - o.published_at))),
+          percentile_cont(0.5)  WITHIN GROUP (ORDER BY EXTRACT(EPOCH FROM (d.attempted_at - n.created_at))),
+          percentile_cont(0.95) WITHIN GROUP (ORDER BY EXTRACT(EPOCH FROM (d.attempted_at - n.created_at)))
+        FROM notifications n
+        JOIN outbox_events o     ON o.notification_id = n.id AND o.published_at IS NOT NULL
+        JOIN delivery_attempts d ON d.notification_id = n.id AND d.status = 'SUCCESS'
+        WHERE {jscope}""")
+    if not rows or not rows[0] or rows[0][0] in (None, ""):
+        return None
+    r = rows[0]
+    f = lambda i: round(float(r[i]), 2) if i < len(r) and r[i] not in (None, "") else 0.0
+    return {"outbox_p50": f(0), "outbox_p95": f(1),
+            "deliver_p50": f(2), "deliver_p95": f(3),
+            "e2e_p50": f(4), "e2e_p95": f(5)}
 
 
 def drain(ctx, baseline, tids, load_start):
@@ -422,6 +576,8 @@ def conservation(ctx, run_id, tids, baseline, k6, drain_timed_out):
         ) x""")
 
     prof = delivery_profile(ctx, jscope)
+    per_tenant = per_tenant_metrics(ctx, tids, baseline)
+    latency = latency_breakdown(ctx, jscope)
 
     mailpit = mailpit_count(ctx, run_id)
     # Ground truth: every message is unique, so the number of distinct emails that
@@ -437,7 +593,8 @@ def conservation(ctx, run_id, tids, baseline, k6, drain_timed_out):
              da_success=da_success, da_fail=da_fail, dup_a=dup_a, dup_b=dup_b,
              mailpit=mailpit,
              peak_rate=prof["peak_rate"], active_span=prof["active_span"],
-             delivery_per_second=prof["per_second"])
+             delivery_per_second=prof["per_second"], per_tenant=per_tenant,
+             latency=latency)
 
     # ── invariants: (name, ok, detail) ──
     inv = []
@@ -505,7 +662,7 @@ SIGNPOSTS = {
     "ingest accounted": [
         "submitted>persisted ⇒ 429 rate-limit or validation rejects (check k6 rejected + app logs)",
     ],
-    "unique content": [
+    "unique mail content": [
         "Duplicate subjects in DB ⇒ load generator collision (should never happen) — inspect notifications",
     ],
 }
@@ -515,7 +672,7 @@ SIGNPOSTS = {
 #  scorecard
 # ════════════════════════════════════════════════════════════════════
 def scorecard(env, run_id, baseline, ctx, k6, events, drain_s, drain_timed_out,
-              m, inv, diagnostics, load_start, drain_end, samples):
+              m, inv, diagnostics, load_start, drain_end, samples, targets):
     head("SCORECARD")
     failed = [name for name, ok, _ in inv if not ok]
     verdict_pass = not failed
@@ -525,7 +682,7 @@ def scorecard(env, run_id, baseline, ctx, k6, events, drain_s, drain_timed_out,
     print(f"  {B}Baseline{NC}     {baseline}")
     ld = ctx.load
     print(f"  {B}Load{NC}         {ld['rate']}/s · {ld['pattern']} · {ld['duration_seconds']}s · "
-          f"{'+'.join(ld['channels'])} · {len(ld['tenant_ids'])} tenant(s)")
+          f"{'+'.join(ld['channels'])} · {len(ld['tenants'])} tenant(s)")
     if events:
         for e in events:
             print(f"  {B}Chaos{NC}        {e['label']}: {e['action']} {e['container']} {e['down_at']}–{e['up_at']}")
@@ -546,16 +703,47 @@ def scorecard(env, run_id, baseline, ctx, k6, events, drain_s, drain_timed_out,
     line("Drain time", f"{drain_s}s" + (c("  TIMEOUT", R) if drain_timed_out else ""))
 
     hr()
-    print(f"  {B}Throughput{NC}  {DIM}(indicative — not report-grade on a single run){NC}")
+    print(f"  {B}Delivery throughput{NC}  {DIM}(processing side — API ingress is not the focus){NC}")
     peak = m.get("peak_rate", 0)
     span = m.get("active_span", 0)
     avg_active = m["delivered"] / span if span else 0
-    submit_rate = f"{k6.get('submit_rate', 0):.0f}/s"
-    api_p95 = f"{k6.get('api_p95_ms', 0):.0f}ms"
-    print(f"    Submit rate    {c(submit_rate, Y)}    API p95 {api_p95}")
-    print(f"    Peak delivery  {c(f'{peak:.0f}/s', Y)}    {DIM}(max sustained over ~5s, from delivery timestamps){NC}")
-    print(f"    Avg delivery   {c(f'{avg_active:.0f}/s', Y)}    {DIM}({m['delivered']} delivered over {span}s of actual delivery){NC}")
-    print(f"    Time to drain  {c(f'{drain_s}s', Y)}    {DIM}(wall clock incl. idle waits + stale-cleanup tail){NC}")
+    print(f"    Peak delivery  {c(f'{peak:.0f}/s', Y)}    {DIM}(max sustained over ~5s){NC}")
+    print(f"    Avg delivery   {c(f'{avg_active:.0f}/s', Y)}    {DIM}({m['delivered']} delivered over {span}s of active delivery){NC}")
+    print(f"    Time to drain  {c(f'{drain_s}s', Y)}    {DIM}(wall clock incl. redelivery + stale-cleanup tail){NC}")
+    print(f"    {DIM}· ingress: {k6.get('submit_rate', 0):.0f}/s accepted (API p95 {k6.get('api_p95_ms', 0):.0f}ms){NC}")
+
+    lat = m.get("latency")
+    if lat:
+        hr()
+        print(f"  {B}Latency breakdown{NC}  {DIM}(where a message spends its time — p50 / p95){NC}")
+        rows = [
+            ("accept → published", lat["outbox_p50"], lat["outbox_p95"], "outbox publisher (global)"),
+            ("published → delivered", lat["deliver_p50"], lat["deliver_p95"], "per-tenant queue + worker"),
+            ("end-to-end", lat["e2e_p50"], lat["e2e_p95"], ""),
+        ]
+        for name, p50, p95, note in rows:
+            print(f"    {name:<22}{c(f'{p50:>6.1f}', Y)} / {c(f'{p95:>6.1f}', Y)} s   {DIM}{note}{NC}")
+        e2e = lat["e2e_p50"] or 1
+        if lat["outbox_p50"] / e2e > 0.6:
+            print(f"    {c('→', C)} outbox publish is {lat['outbox_p50']/e2e*100:.0f}% of latency — "
+                  "bottleneck is the OutboxPublisher (batch/poll limited), NOT the workers")
+        elif lat["deliver_p50"] / e2e > 0.6:
+            print(f"    {c('→', C)} time is in queue+delivery — look at worker concurrency / provider latency")
+
+    pt = m.get("per_tenant", [])
+    if len(pt) > 1:
+        names = {t["id"]: t["name"] for t in targets}
+        weights = {t["id"]: t.get("weight", 1) for t in targets}
+        tot_deliv = sum(t["delivered"] for t in pt) or 1
+        hr()
+        print(f"  {B}Per-tenant{NC}  {DIM}(throughput + end-to-end latency; share vs weight shows split fairness){NC}")
+        print(f"    {'tenant':<14}{'wt':>3}{'subm':>7}{'deliv':>7}{'share':>7}{'avg/s':>7}{'peak/s':>7}{'p50':>7}{'p95':>7}")
+        for t in pt:
+            nm = names.get(t["tenant_id"], t["tenant_id"][:8])
+            share = t["delivered"] / tot_deliv * 100
+            print(f"    {nm:<14}{weights.get(t['tenant_id'],1):>3}{t['total']:>7}{t['delivered']:>7}"
+                  f"{share:>6.1f}%{t['avg_rate']:>7.0f}{t['peak_rate']:>7.0f}"
+                  f"{t['p50_latency_s']:>6.1f}{t['p95_latency_s']:>6.1f}")
 
     hr()
     print(f"  {B}Correctness{NC}")
@@ -645,9 +833,13 @@ def main():
     head("NDP TEST FRAMEWORK · correctness gate + signpost")
     print(f"  {env['cpu']} · {env['ram']} · {env['os']}")
 
-    baseline = preflight(ctx)
-    targets = provision_keys(ctx, run_id)
+    preflight(ctx)
+    targets = provision_tenants(ctx, run_id)
     tids = list(dict.fromkeys(t["id"] for t in targets))
+    # Capture the baseline AFTER provisioning (a restart can take ~45s) so the run
+    # window is tight and starts right before the load.
+    baseline = psql(ctx, "SELECT now()")[0][0]
+    print(f"  {DIM}baseline (DB clock): {baseline}{NC}")
 
     verdict_pass = False
     try:
@@ -656,7 +848,7 @@ def main():
         drain_end = time.monotonic()
         m, inv, diagnostics = conservation(ctx, run_id, tids, baseline, k6, timed_out)
         verdict_pass = scorecard(env, run_id, baseline, ctx, k6, events, drain_s, timed_out,
-                                 m, inv, diagnostics, load_start, drain_end, samples)
+                                 m, inv, diagnostics, load_start, drain_end, samples, targets)
         save_json(run_id, env, baseline, ctx, k6, events, drain_s, timed_out, m, inv, diagnostics, verdict_pass, samples)
     finally:
         head("PHASE 5 · Teardown")

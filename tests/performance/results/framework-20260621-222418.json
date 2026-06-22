@@ -1,0 +1,187 @@
+{
+  "run_id": "20260621-222418",
+  "timestamp": "2026-06-21T20:26:58.931511+00:00",
+  "environment": {
+    "host": "00b98c017b",
+    "cpu": "Apple M1 Pro",
+    "ram": "16.0 GB",
+    "os": "26.5.1"
+  },
+  "baseline_db_clock": "2026-06-21 20:24:19.523872+00",
+  "config": {
+    "load": {
+      "pattern": "constant",
+      "rate": 80,
+      "duration_seconds": 12,
+      "channels": [
+        "EMAIL"
+      ],
+      "//tenants": "List as many tenants as you want by name; the script creates any that don't exist and restarts the app (ndp-app) once so their workers register. Tenants persist between runs (reused, not deleted). 'weight' sets each tenant's share of the total rate \u2014 use unequal weights (e.g. 10 vs 1) for noisy-neighbour / fairness runs.",
+      "tenants": [
+        {
+          "name": "ndp-test-a",
+          "weight": 1
+        },
+        {
+          "name": "ndp-test-b",
+          "weight": 1
+        }
+      ],
+      "webhook_url": "http://host.docker.internal:8080/actuator/health"
+    },
+    "chaos": {
+      "enabled": false,
+      "faults": [
+        {
+          "label": "broker_outage",
+          "container": "ndp-rabbitmq",
+          "action": "pause",
+          "at_seconds": 20,
+          "duration_seconds": 15
+        }
+      ]
+    },
+    "limits": {
+      "drain_timeout_seconds": 300,
+      "drain_poll_seconds": 3,
+      "stall_seconds": 60
+    }
+  },
+  "k6": {
+    "submitted": 961,
+    "rejected": 0,
+    "submit_rate": 80.00421583089457,
+    "api_avg_ms": 25.657198751300722,
+    "api_p95_ms": 102.369,
+    "api_max_ms": 324.032,
+    "http_error_rate": 0,
+    "duration_s": 12.011867
+  },
+  "chaos_events": [],
+  "drain_seconds": 157,
+  "drain_timed_out": false,
+  "peak_delivery_rate": 96.4,
+  "active_delivery_span_s": 12,
+  "metrics": {
+    "submitted": 961,
+    "rejected": 0,
+    "accepted_db": 961,
+    "distinct_subject": 961,
+    "delivered": 961,
+    "failed": 0,
+    "nonterminal": 0,
+    "email_total": 961,
+    "email_delivered": 961,
+    "outbox_pub": 961,
+    "outbox_unpub": 0,
+    "da_success": 961,
+    "da_fail": 0,
+    "dup_a": 0,
+    "dup_b": 0,
+    "mailpit": 961,
+    "peak_rate": 96.4,
+    "active_span": 12,
+    "delivery_per_second": [
+      [
+        0,
+        74
+      ],
+      [
+        1,
+        174
+      ],
+      [
+        2,
+        247
+      ],
+      [
+        3,
+        334
+      ],
+      [
+        4,
+        380
+      ],
+      [
+        5,
+        474
+      ],
+      [
+        6,
+        574
+      ],
+      [
+        7,
+        674
+      ],
+      [
+        8,
+        771
+      ],
+      [
+        9,
+        862
+      ],
+      [
+        10,
+        952
+      ],
+      [
+        11,
+        961
+      ]
+    ],
+    "per_tenant": [
+      {
+        "tenant_id": "fe86f79c-02fe-4586-bb79-110fd681b370",
+        "total": 480,
+        "delivered": 480,
+        "peak_rate": 48.2,
+        "p50_latency_s": 0.95,
+        "p95_latency_s": 1.34
+      },
+      {
+        "tenant_id": "a9bcdff5-0531-4f47-9585-ee8d81e4dfc7",
+        "total": 481,
+        "delivered": 481,
+        "peak_rate": 48.2,
+        "p50_latency_s": 0.95,
+        "p95_latency_s": 1.34
+      }
+    ]
+  },
+  "invariants": [
+    {
+      "name": "no silent loss",
+      "pass": true,
+      "detail": "all reached terminal"
+    },
+    {
+      "name": "ingest accounted",
+      "pass": true,
+      "detail": "submitted 961 vs persisted 961"
+    },
+    {
+      "name": "unique mail content",
+      "pass": true,
+      "detail": "961 distinct / 961 rows"
+    },
+    {
+      "name": "outbox drained",
+      "pass": true,
+      "detail": "0 unpublished"
+    },
+    {
+      "name": "no duplicate delivery (attempts)",
+      "pass": true,
+      "detail": "0 extra SUCCESS rows  (0.0%)"
+    },
+    {
+      "name": "no duplicate delivery (mailpit/escaped)",
+      "pass": true,
+      "detail": "mailpit 961 = 961 unique emails"
+    }
+  ],
+  "diagnostics": {},
+  "verdict": "PASS"
+}

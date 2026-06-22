@@ -85,8 +85,19 @@ export const options = {
   scenarios: { ndp: buildScenario() },
 };
 
+// Weighted tenant pool: a tenant with weight 3 appears 3x, so it gets ~3x the
+// share of the total rate. Equal weights = even split.
+const TENANT_POOL = (() => {
+  const pool = [];
+  for (const t of TARGETS) {
+    const w = Math.max(1, t.weight || 1);
+    for (let i = 0; i < w; i++) pool.push(t);
+  }
+  return pool;
+})();
+
 export function send() {
-  const t = TARGETS[(__VU + __ITER) % TARGETS.length];
+  const t = TENANT_POOL[(__VU + __ITER) % TENANT_POOL.length];
   const channel = CFG.channels[(__VU + __ITER) % CFG.channels.length];
   const uid = `${CFG.run_id}-${__VU}-${__ITER}`;
 

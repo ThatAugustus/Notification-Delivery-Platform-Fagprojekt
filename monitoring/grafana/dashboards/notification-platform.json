@@ -15,39 +15,6 @@
       }
     ]
   },
-  "templating": {
-    "list": [
-      {
-        "current": {
-          "selected": true,
-          "text": "per-tenant",
-          "value": "^(dead-letter-queue|email-queue\\\\..+|webhook-queue\\\\..+)$"
-        },
-        "description": "Select the queue naming strategy of the currently running build",
-        "hide": 0,
-        "includeAll": false,
-        "label": "Queue strategy",
-        "multi": false,
-        "name": "queue_pattern",
-        "options": [
-          {
-            "selected": true,
-            "text": "per-tenant",
-            "value": "^(dead-letter-queue|email-queue\\\\..+|webhook-queue\\\\..+)$"
-          },
-          {
-            "text": "shared",
-            "value": "^(dead-letter-queue|email-queue|webhook-queue)$"
-          }
-        ],
-        "query": "per-tenant : ^(dead-letter-queue|email-queue\\\\..+|webhook-queue\\\\..+)$, shared : ^(dead-letter-queue|email-queue|webhook-queue)$",
-        "refresh": 1,
-        "regex": "",
-        "skipUrlSync": false,
-        "type": "custom"
-      }
-    ]
-  },
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
@@ -1932,30 +1899,6 @@
             "uid": "PBFA97CFB590B2093"
           },
           "editorMode": "code",
-          "expr": "sum(increase(rabbitmq_queue_messages_published_total{queue=~\"email-queue.*|webhook-queue.*\"}[$__range]))",
-          "instant": false,
-          "legendFormat": "queues published total",
-          "range": true,
-          "refId": "E"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
-          },
-          "editorMode": "code",
-          "expr": "sum(increase(rabbitmq_queue_messages_acked_total{queue=~\"email-queue.*|webhook-queue.*\"}[$__range]))",
-          "instant": false,
-          "legendFormat": "queue acked total",
-          "range": true,
-          "refId": "F"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
-          },
-          "editorMode": "code",
           "expr": "sum(increase(worker_processed_total{result=\"success\"}[$__range]))",
           "instant": false,
           "legendFormat": "worker success",
@@ -2197,30 +2140,6 @@
           "legendFormat": "Notifications-exchange total",
           "range": true,
           "refId": "D"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
-          },
-          "editorMode": "code",
-          "expr": "sum(increase(rabbitmq_queue_messages_published_total{queue=~\"email-queue.*|webhook-queue.*\"}[$__range]))",
-          "instant": false,
-          "legendFormat": "queues published total",
-          "range": true,
-          "refId": "E"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "PBFA97CFB590B2093"
-          },
-          "editorMode": "code",
-          "expr": "sum(increase(rabbitmq_queue_messages_acked_total{queue=~\"email-queue.*|webhook-queue.*\"}[$__range]))",
-          "instant": false,
-          "legendFormat": "queue acked total",
-          "range": true,
-          "refId": "F"
         },
         {
           "datasource": {
@@ -4257,6 +4176,39 @@
     "notification-platform",
     "spring-boot"
   ],
+  "templating": {
+    "list": [
+      {
+        "allowCustomValue": true,
+        "current": {
+          "text": "per-tenant",
+          "value": "^(dead-letter-queue|email-queue\\\\..+|webhook-queue\\\\..+)$"
+        },
+        "description": "Select the queue naming strategy of the currently running build",
+        "hide": 0,
+        "includeAll": false,
+        "label": "Queue strategy",
+        "multi": false,
+        "name": "queue_pattern",
+        "options": [
+          {
+            "selected": true,
+            "text": "per-tenant",
+            "value": "^(dead-letter-queue|email-queue\\\\..+|webhook-queue\\\\..+)$"
+          },
+          {
+            "selected": false,
+            "text": "shared",
+            "value": "^(dead-letter-queue|email-queue|webhook-queue)$"
+          }
+        ],
+        "query": "per-tenant : ^(dead-letter-queue|email-queue\\\\..+|webhook-queue\\\\..+)$, shared : ^(dead-letter-queue|email-queue|webhook-queue)$",
+        "skipUrlSync": false,
+        "type": "custom",
+        "valuesFormat": "csv"
+      }
+    ]
+  },
   "time": {
     "from": "now-15m",
     "to": "now"
