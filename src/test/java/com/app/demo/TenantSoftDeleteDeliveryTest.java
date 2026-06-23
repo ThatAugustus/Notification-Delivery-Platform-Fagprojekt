@@ -111,7 +111,7 @@ class TenantSoftDeleteDeliveryTest extends BaseIntegrationTest {
         String emailQueue = "email-queue." + tenantId;
         String webhookQueue = "webhook-queue." + tenantId;
 
-        // Keep submitting until the delete lands and the key starts getting rejected.
+        // keep firing notifications until the key gets rejected
         List<Submitted> accepted = new CopyOnWriteArrayList<>();
         AtomicBoolean refused = new AtomicBoolean(false);
         AtomicBoolean stop = new AtomicBoolean(false);
@@ -135,7 +135,7 @@ class TenantSoftDeleteDeliveryTest extends BaseIntegrationTest {
         });
         submitter.start();
 
-        // Wait until work is actually flowing, then delete mid-stream.
+        // wait until stuff is actually being processed, then delete while it's mid-flight
         await().atMost(15, TimeUnit.SECONDS).until(() -> accepted.size() >= 25);
 
         ResponseEntity<Void> delete = restTemplate.exchange(
@@ -147,7 +147,7 @@ class TenantSoftDeleteDeliveryTest extends BaseIntegrationTest {
                 .as("soft delete of a busy tenant should succeed")
                 .isTrue();
 
-        // Wait for the submitter to hit a live 401 — proof the delete landed mid-send.
+        // once we get a 401 the delete has taken effect mid-send
         await().atMost(15, TimeUnit.SECONDS).untilTrue(refused);
         stop.set(true);
         submitter.join(TimeUnit.SECONDS.toMillis(15));
@@ -165,7 +165,7 @@ class TenantSoftDeleteDeliveryTest extends BaseIntegrationTest {
                 .as("a soft-deleted tenant must not be able to submit new notifications")
                 .isEqualTo(HttpStatus.UNAUTHORIZED);
 
-        // Graceful drain: work accepted before the delete is still delivered, not dropped.
+        // anything accepted before the delete should still get delivered, not dropped
         await().atMost(30, TimeUnit.SECONDS).untilAsserted(() ->
                 assertThat(accepted).allSatisfy(s -> {
                     var n = notificationRepository.findById(s.id()).orElseThrow();
@@ -174,7 +174,6 @@ class TenantSoftDeleteDeliveryTest extends BaseIntegrationTest {
                             .isEqualTo(NotificationStatus.DELIVERED);
                 }));
 
-        // Only once the backlog is drained are the queues torn down.
         await().atMost(30, TimeUnit.SECONDS).untilAsserted(() -> {
             assertThat(rabbitAdmin.getQueueProperties(emailQueue)).isNull();
             assertThat(rabbitAdmin.getQueueProperties(webhookQueue)).isNull();

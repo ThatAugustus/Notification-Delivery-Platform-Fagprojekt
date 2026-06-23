@@ -38,7 +38,7 @@ public interface NotificationRepository extends JpaRepository<Notification, UUID
         """, nativeQuery = true)
     List<Notification> findStale(@Param("thresholdMinutes") int thresholdMinutes, @Param("batchSize") int batchSize);
 
-    // Only move ACCEPTED -> QUEUED. A worker may already have raced ahead to DELIVERED; don't overwrite it.
+    // only move to QUEUED if it's still ACCEPTED, the worker might have already delivered it
     @Transactional
     @Modifying
     @Query(value = """
@@ -48,8 +48,7 @@ public interface NotificationRepository extends JpaRepository<Notification, UUID
         """, nativeQuery = true)
     int markQueuedIfAccepted(@Param("id") UUID id);
 
-    // Counts unfinished work for the drain check. The broker's message count can't be used: listeners
-    // prefetch, so messages vanish from it while still unprocessed.
+    // counting in-flight work from the db, not the rabbit queue size (listeners prefetch so that count lies)
     @Query(value = """
         SELECT COUNT(*) FROM notifications
         WHERE tenant_id = :tenantId
@@ -58,7 +57,6 @@ public interface NotificationRepository extends JpaRepository<Notification, UUID
         """, nativeQuery = true)
     long countInFlightForTenantAndChannel(@Param("tenantId") UUID tenantId, @Param("channel") String channel);
 
-    // Drain deadline hit: fail anything still undelivered so it doesn't linger as a fake QUEUED row.
     @Transactional
     @Modifying
     @Query(value = """

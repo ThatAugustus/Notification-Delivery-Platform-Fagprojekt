@@ -6,15 +6,15 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
-import org.springframework.scheduling.annotation.Scheduled; // Mapped Diagnostic Context - used for structured logging across threads
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.app.demo.service.TenantQueueLifecycleService;
 import com.app.demo.model.OutboxEvent;
 import com.app.demo.model.enums.NotificationStatus;
 import com.app.demo.repository.NotificationRepository;
 import com.app.demo.repository.OutboxEventRepository;
+import com.app.demo.service.TenantQueueLifecycleService;
 
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -55,8 +55,8 @@ public class OutboxPublisher {
             try {
                 var notification = event.getNotification();
 
-                // Queue gone? For a deleted tenant the message can never land, so fail it instead of
-                // stranding it. For an active tenant the queue is just not ready yet, so try again later.
+                // if the queue isn't there we can't publish. for a deleted tenant it's never coming back
+                // so just fail it, but for an active tenant it's probably not set up yet so try again later
                 if (!queueLifecycleService.destinationQueueExists(
                         notification.getChannel(), notification.getTenant().getId())) {
                     if (notification.getTenant().isDeleted()) {
@@ -84,7 +84,6 @@ public class OutboxPublisher {
                 outboxEventRepository.save(event);
                 publishedCounter.increment(); //TODO: maybe this should be somewhere else, since this code is not affected if the transaction fails, and it will count the message as published even if it's not?
 
-                // Conditional move so we don't overwrite a worker that already delivered this one.
                 notificationRepository.markQueuedIfAccepted(notification.getId());
 
                 log.info("Published outbox event {} for notification {} via {}",

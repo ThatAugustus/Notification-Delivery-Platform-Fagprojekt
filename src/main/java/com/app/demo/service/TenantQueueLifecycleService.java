@@ -51,7 +51,7 @@ public class TenantQueueLifecycleService {
     private final WebhookWorker webhookWorker;
     private final NotificationQueueConfig notificationQueueConfig;
 
-    // Seconds a soft-deleted tenant gets to drain before its queues are force-removed and the rest failed.
+    // how long we let a deleted tenant finish its backlog before we just remove the queues and fail the rest
     @Value("${app.tenant-drain.grace-seconds:120}")
     private long drainGraceSeconds;
 
@@ -117,7 +117,8 @@ public class TenantQueueLifecycleService {
         }
 
         if (tenant.isDeleted()) {
-            // Leave the queues running so the backlog still drains; drainDeletedTenants() removes them later.
+            // don't remove the queues yet, let them finish delivering what's already in them.
+            // drainDeletedTenants() does the cleanup once they're empty
             log.info("Tenant {} soft-deleted; draining its queues before teardown", tenant.getId());
             return;
         }
@@ -151,20 +152,18 @@ public class TenantQueueLifecycleService {
         return NotificationQueueNaming.routingKey(channel, tenantId, notificationQueueConfig.getMode());
     }
 
-    // Used by the outbox to avoid publishing into a queue that has already been removed.
     public boolean destinationQueueExists(NotificationChannel channel, UUID tenantId) {
         if (notificationQueueConfig.isShared()) {
-            return true; // the shared queue is always declared
+            return true;
         }
         String queueName = NotificationQueueNaming.queueName(channel, tenantId, QueueStrategyMode.PER_TENANT);
         return rabbitAdmin.getQueueProperties(queueName) != null;
     }
 
-    // Removes a soft-deleted tenant's queues, but only once their backlog has drained.
     @Scheduled(fixedDelayString = "${app.tenant-drain.poll-ms:1000}")
     public void drainDeletedTenants() {
         if (notificationQueueConfig.isShared()) {
-            return; // nothing tenant-specific to drain in shared mode
+            return; // per-tenant queues only
         }
         for (Tenant tenant : tenantRepository.findAllByDeletedAtIsNotNull()) {
             drainChannel(tenant, NotificationChannel.EMAIL);
@@ -177,10 +176,10 @@ public class TenantQueueLifecycleService {
         String listenerId = NotificationQueueNaming.listenerId(channel, tenant.getId(), QueueStrategyMode.PER_TENANT);
 
         if (rabbitAdmin.getQueueProperties(queueName) == null) {
-            return; // already torn down
+            return; // already gone
         }
 
-        // Drained = nothing left in flight and nothing left for the outbox to publish.
+        // safe to remove once nothing's in flight and the outbox has nothing left to send
         boolean inFlight = notificationRepository.countInFlightForTenantAndChannel(
                 tenant.getId(), channel.name()) > 0;
         boolean outboxPending = outboxEventRepository.countUnpublishedByTenant(tenant.getId()) > 0;
