@@ -103,7 +103,7 @@ class TenantSoftDeleteDeliveryTest extends BaseIntegrationTest {
     }
 
     @Test
-    @DisplayName("Soft delete under load stops cleanly, never double-delivers, and leaves unconsumed work stranded in QUEUED")
+    @DisplayName("Soft delete under load stops cleanly, never double-delivers, and leaves unconsumed work stranded (ACCEPTED/QUEUED)")
     void softDelete_underLoad_strandsInFlightWorkButNeverDoubleDelivers() throws InterruptedException {
         String tenantId = createTenant();
         String rawKey = createKey(tenantId, "busy");
@@ -171,14 +171,16 @@ class TenantSoftDeleteDeliveryTest extends BaseIntegrationTest {
             assertThat(rabbitAdmin.getQueueProperties(webhookQueue)).isNull();
         });
 
-        // Nothing should be left mid-pipeline. QUEUED here means stranded/undelivered (the queue was removed before it was consumed), not in-progress.
+        // Nothing should be left mid-pipeline. ACCEPTED/QUEUED here means stranded/undelivered
+        // (the queue was removed before it was consumed), not in-progress. The OutboxPublisher no
+        // longer marks notifications QUEUED, so published-but-unconsumed work now stays ACCEPTED.
         await().atMost(30, TimeUnit.SECONDS).untilAsserted(() ->
                 assertThat(accepted).allSatisfy(s -> {
                     var n = notificationRepository.findById(s.id()).orElseThrow();
                     assertThat(n.getStatus())
                             .as("notification %s should have stopped moving, was %s", s.id(), n.getStatus())
-                            .isIn(NotificationStatus.DELIVERED, NotificationStatus.QUEUED,
-                                    NotificationStatus.FAILED);
+                            .isIn(NotificationStatus.DELIVERED, NotificationStatus.ACCEPTED,
+                                    NotificationStatus.QUEUED, NotificationStatus.FAILED);
                 }));
 
         List<String> acceptedRecipients = accepted.stream().map(Submitted::recipient).toList();

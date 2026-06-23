@@ -20,7 +20,7 @@ import com.app.demo.repository.NotificationRepository;
 public class StaleNotificationCleanup {
 
     private static final Logger log = LoggerFactory.getLogger(StaleNotificationCleanup.class);
-    private static final int STALE_THRESHOLD_MINUTES = 2;
+    private static final int STALE_THRESHOLD_MINUTES = 5;
     private static final int BATCH_SIZE = 500;
 
     private final NotificationRepository notificationRepository;

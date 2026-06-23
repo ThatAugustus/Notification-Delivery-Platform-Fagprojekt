@@ -533,7 +533,7 @@ def drain(ctx, baseline, tids, load_start):
         stalled = stalled + poll if alive == 0 else 0
         if stalled >= stall_limit:
             print()
-            print(c(f"  ✗ STUCK — {inflight} in-flight, zero pipeline activity for {stalled}s "
+            print(c(f"   STUCK — {inflight} in-flight, zero pipeline activity for {stalled}s "
                     "(nothing delivered/attempted at all; e.g. no consumer for their queue)", R))
             return waited, True, samples
         time.sleep(poll)

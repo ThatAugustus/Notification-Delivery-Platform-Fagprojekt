@@ -76,9 +76,6 @@ public abstract class BaseNotificationWorker {
                     .description("Messages received by workers (before processing)")
                     .register(meterRegistry).increment();
 
-
-            
-
             // 2. Fetch Notification
             final String notifId = payload.getNotificationId().toString();
             notification = notificationRepository.findById(payload.getNotificationId())

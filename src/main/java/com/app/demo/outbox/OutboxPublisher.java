@@ -64,21 +64,17 @@ public class OutboxPublisher {
                 );
                 event.markPublished();
                 outboxEventRepository.save(event);
-                publishedCounter.increment(); //TODO: maybe this should be somewhere else, since this code is not affected if the transaction fails, and it will count the message as published even if it's not?
-
+                publishedCounter.increment(); 
                 var notification = event.getNotification();
-                notification.setStatus(NotificationStatus.QUEUED);
-                notificationRepository.save(notification);
-
                 log.info("Published outbox event {} for notification {} via {}",
                         event.getId(), notification.getId(), routingKey);
             } catch (Exception e) {
-                event.setRetryCount(event.getRetryCount() + 1); // Increment retry count to DB 
-                event.setLastError(e.getMessage()); // Set the last error message to DB
-                outboxEventRepository.save(event); // Save the updated event to DB
+                event.setRetryCount(event.getRetryCount() + 1); 
+                event.setLastError(e.getMessage()); 
+                outboxEventRepository.save(event); 
                 log.error("Failed to publish outbox event {}: {}", event.getId(), e.getMessage());
-            } finally { // finally: Always runs whether the try-block succeeds or fails
-                MDC.remove("notificationId"); // Clean up MDC context
+            } finally { 
+                MDC.remove("notificationId"); 
             }
         }
     }

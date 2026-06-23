@@ -12,8 +12,8 @@
 
   "load": {
     "pattern": "ramp",
-    "rate": 100,
-    "duration_seconds": 10,
+    "rate": 300,
+    "duration_seconds": 30,
     "channels": ["EMAIL"],
 
     "//tenants": "List as many tenants as you want by name; the script creates any that don't exist and restarts the app (ndp-app) once so their workers register. Tenants persist between runs (reused, not deleted). 'weight' sets each tenant's share of the total rate — use unequal weights (e.g. 10 vs 1) for noisy-neighbour / fairness runs.",
