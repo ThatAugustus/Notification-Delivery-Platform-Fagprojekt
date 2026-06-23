@@ -53,9 +53,27 @@ public class OutboxPublisher {
         for (OutboxEvent event : pending) {
             MDC.put("notificationId", event.getNotification().getId().toString());
             try {
+                var notification = event.getNotification();
+
+                // Queue gone? For a deleted tenant the message can never land, so fail it instead of
+                // stranding it. For an active tenant the queue is just not ready yet, so try again later.
+                if (!queueLifecycleService.destinationQueueExists(
+                        notification.getChannel(), notification.getTenant().getId())) {
+                    if (notification.getTenant().isDeleted()) {
+                        event.markPublished();
+                        event.setLastError("destination queue removed after tenant deletion");
+                        outboxEventRepository.save(event);
+                        notification.setStatus(NotificationStatus.FAILED);
+                        notificationRepository.save(notification);
+                        log.warn("Failed outbox event {}: destination queue gone for notification {}",
+                                event.getId(), notification.getId());
+                    }
+                    continue;
+                }
+
                 String routingKey = queueLifecycleService.routingKeyFor(
-                    event.getNotification().getChannel(),
-                    event.getNotification().getTenant().getId());
+                    notification.getChannel(),
+                    notification.getTenant().getId());
 
                 rabbitTemplate.convertAndSend(
                         "notifications-exchange",
@@ -66,9 +84,8 @@ public class OutboxPublisher {
                 outboxEventRepository.save(event);
                 publishedCounter.increment(); //TODO: maybe this should be somewhere else, since this code is not affected if the transaction fails, and it will count the message as published even if it's not?
 
-                var notification = event.getNotification();
-                notification.setStatus(NotificationStatus.QUEUED);
-                notificationRepository.save(notification);
+                // Conditional move so we don't overwrite a worker that already delivered this one.
+                notificationRepository.markQueuedIfAccepted(notification.getId());
 
                 log.info("Published outbox event {} for notification {} via {}",
                         event.getId(), notification.getId(), routingKey);
