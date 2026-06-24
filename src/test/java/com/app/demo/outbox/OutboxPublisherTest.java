@@ -56,6 +56,7 @@ class OutboxPublisherTest {
         when(outboxEventRepository.findUnpublishedBatchForTenant(eq(tenantB.getTenantId()), eq(BATCH_SIZE)))
             .thenReturn(tenantBEvents);
 
+        when(queueLifecycleService.destinationQueueExists(any(), any())).thenReturn(true);
         when(queueLifecycleService.routingKeyFor(any(), any())).thenAnswer(invocation -> {
             UUID tenantId = invocation.getArgument(1);
             return tenantId.equals(tenantA.getTenantId()) ? "rk-a" : "rk-b";

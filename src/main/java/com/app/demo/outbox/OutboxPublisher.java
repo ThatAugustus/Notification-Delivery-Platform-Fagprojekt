@@ -112,11 +112,28 @@ public class OutboxPublisher {
     }
 
     private void publishOne(OutboxEvent event) {
-        MDC.put("notificationId", event.getNotification().getId().toString());
+        var notification = event.getNotification();
+        MDC.put("notificationId", notification.getId().toString());
         try {
+            // if the queue isn't there we can't publish. for a deleted tenant it's never coming back
+            // so just fail it, but for an active tenant it's probably not set up yet so try again later
+            if (!queueLifecycleService.destinationQueueExists(
+                    notification.getChannel(), notification.getTenant().getId())) {
+                if (notification.getTenant().isDeleted()) {
+                    event.markPublished();
+                    event.setLastError("destination queue removed after tenant deletion");
+                    outboxEventRepository.save(event);
+                    notification.setStatus(NotificationStatus.FAILED);
+                    notificationRepository.save(notification);
+                    log.warn("Failed outbox event {}: destination queue gone for notification {}",
+                            event.getId(), notification.getId());
+                }
+                return;
+            }
+
             String routingKey = queueLifecycleService.routingKeyFor(
-                event.getNotification().getChannel(),
-                event.getNotification().getTenant().getId());
+                notification.getChannel(),
+                notification.getTenant().getId());
 
             rabbitTemplate.convertAndSend(
                     "notifications-exchange",
@@ -126,7 +143,6 @@ public class OutboxPublisher {
             event.markPublished();
             outboxEventRepository.save(event);
             publishedCounter.increment();
-            var notification = event.getNotification();
             log.info("Published outbox event {} for notification {} via {}",
                     event.getId(), notification.getId(), routingKey);
         } catch (RuntimeException e) {
