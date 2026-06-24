@@ -230,17 +230,26 @@ def rabbit_queue_consumers(ctx):
 
 
 def tenants_needing_workers(ctx, tids, channels):
-    """Which tenant ids lack a consumer on a queue for one of their channels."""
+    """Which tenant ids have no consumer able to handle one of their channels.
+
+    Architecture-agnostic: a tenant is "ready" for a channel if EITHER a shared
+    channel queue ('email-queue') has consumers, OR its per-tenant queue
+    ('email-queue.<tid>') does. So:
+      - shared-queue model  → one queue with consumers serves every tenant (no restart).
+      - per-tenant model    → each tenant needs its own queue (restart when a new one lacks it).
+    """
     consumers = rabbit_queue_consumers(ctx)
     prefixes = []
     if "EMAIL" in channels:
-        prefixes.append("email-queue.")
+        prefixes.append("email-queue")
     if "WEBHOOK" in channels:
-        prefixes.append("webhook-queue.")
+        prefixes.append("webhook-queue")
     missing = []
     for tid in tids:
         for p in prefixes:
-            if consumers.get(f"{p}{tid}", 0) < 1:
+            shared_ok = consumers.get(p, 0) >= 1               # shared queue
+            per_tenant_ok = consumers.get(f"{p}.{tid}", 0) >= 1  # per-tenant queue
+            if not (shared_ok or per_tenant_ok):
                 missing.append(tid)
                 break
     return missing
