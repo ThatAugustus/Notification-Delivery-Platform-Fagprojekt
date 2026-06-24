@@ -11,7 +11,7 @@ import lombok.Setter;
 @NoArgsConstructor
 public class UpdateTenantRequest {
 
-    // Both optional. Null means "leave unchanged."
+    // both optional, null just means leave it unchanged
     private String name;
 
     @Email(message = "defaultFromEmail must be a valid email address")

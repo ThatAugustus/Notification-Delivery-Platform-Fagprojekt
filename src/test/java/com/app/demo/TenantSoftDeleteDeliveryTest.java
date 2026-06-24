@@ -103,15 +103,15 @@ class TenantSoftDeleteDeliveryTest extends BaseIntegrationTest {
     }
 
     @Test
-    @DisplayName("Soft delete under load stops cleanly, never double-delivers, and leaves unconsumed work stranded (ACCEPTED/QUEUED)")
-    void softDelete_underLoad_strandsInFlightWorkButNeverDoubleDelivers() throws InterruptedException {
+    @DisplayName("Soft delete under load drains in-flight work: every accepted notification is delivered exactly once, then the queues are removed")
+    void softDelete_underLoad_deliversAllInFlightWorkWithoutDuplicates() throws InterruptedException {
         String tenantId = createTenant();
         String rawKey = createKey(tenantId, "busy");
 
         String emailQueue = "email-queue." + tenantId;
         String webhookQueue = "webhook-queue." + tenantId;
 
-        // Keep submitting until the delete lands and the key starts getting rejected.
+        // keep firing notifications until the key gets rejected
         List<Submitted> accepted = new CopyOnWriteArrayList<>();
         AtomicBoolean refused = new AtomicBoolean(false);
         AtomicBoolean stop = new AtomicBoolean(false);
@@ -135,7 +135,7 @@ class TenantSoftDeleteDeliveryTest extends BaseIntegrationTest {
         });
         submitter.start();
 
-        // Wait until work is actually flowing, then delete mid-stream.
+        // wait until stuff is actually being processed, then delete while it's mid-flight
         await().atMost(15, TimeUnit.SECONDS).until(() -> accepted.size() >= 25);
 
         ResponseEntity<Void> delete = restTemplate.exchange(
@@ -147,15 +147,14 @@ class TenantSoftDeleteDeliveryTest extends BaseIntegrationTest {
                 .as("soft delete of a busy tenant should succeed")
                 .isTrue();
 
+        // once we get a 401 the delete has taken effect mid-send
+        await().atMost(15, TimeUnit.SECONDS).untilTrue(refused);
         stop.set(true);
         submitter.join(TimeUnit.SECONDS.toMillis(15));
 
         assertThat(accepted)
                 .as("the tenant should have had notifications in flight when it was deleted")
                 .isNotEmpty();
-        assertThat(refused)
-                .as("the submitter should have seen a live 401, proving the delete took effect while it was still sending")
-                .isTrue();
 
         ResponseEntity<Map<String, Object>> afterDelete = restTemplate.exchange(
                 "/api/v1/notifications",
@@ -166,22 +165,19 @@ class TenantSoftDeleteDeliveryTest extends BaseIntegrationTest {
                 .as("a soft-deleted tenant must not be able to submit new notifications")
                 .isEqualTo(HttpStatus.UNAUTHORIZED);
 
-        await().atMost(20, TimeUnit.SECONDS).untilAsserted(() -> {
-            assertThat(rabbitAdmin.getQueueProperties(emailQueue)).isNull();
-            assertThat(rabbitAdmin.getQueueProperties(webhookQueue)).isNull();
-        });
-
-        // Nothing should be left mid-pipeline. ACCEPTED/QUEUED here means stranded/undelivered
-        // (the queue was removed before it was consumed), not in-progress. The OutboxPublisher no
-        // longer marks notifications QUEUED, so published-but-unconsumed work now stays ACCEPTED.
+        // anything accepted before the delete should still get delivered, not dropped
         await().atMost(30, TimeUnit.SECONDS).untilAsserted(() ->
                 assertThat(accepted).allSatisfy(s -> {
                     var n = notificationRepository.findById(s.id()).orElseThrow();
                     assertThat(n.getStatus())
-                            .as("notification %s should have stopped moving, was %s", s.id(), n.getStatus())
-                            .isIn(NotificationStatus.DELIVERED, NotificationStatus.ACCEPTED,
-                                    NotificationStatus.QUEUED, NotificationStatus.FAILED);
+                            .as("notification %s should have been delivered, was %s", s.id(), n.getStatus())
+                            .isEqualTo(NotificationStatus.DELIVERED);
                 }));
+
+        await().atMost(30, TimeUnit.SECONDS).untilAsserted(() -> {
+            assertThat(rabbitAdmin.getQueueProperties(emailQueue)).isNull();
+            assertThat(rabbitAdmin.getQueueProperties(webhookQueue)).isNull();
+        });
 
         List<String> acceptedRecipients = accepted.stream().map(Submitted::recipient).toList();
         List<String> deliveredTo = mockEmailProvider.getSentEmails().stream()

@@ -11,5 +11,7 @@ import com.app.demo.model.Tenant;
 public interface TenantRepository extends JpaRepository<Tenant, UUID> {
     List<Tenant> findAllByDeletedAtIsNull();
 
+    List<Tenant> findAllByDeletedAtIsNotNull();
+
     Optional<Tenant> findByIdAndDeletedAtIsNull(UUID id);
 }

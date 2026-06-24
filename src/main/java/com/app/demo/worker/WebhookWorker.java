@@ -70,7 +70,7 @@ public class WebhookWorker extends BaseNotificationWorker {
                 .header("Content-Type", "application/json")
                 .POST(HttpRequest.BodyPublishers.ofString(body));
 
-        // Sign the body with HMAC-SHA256 so the receiver can verify it came from us, but only if the tenant set a secret.
+        // sign the body with hmac-sha256 so the receiver can tell it's from us, only if the tenant set a secret
         String secret = payload.getWebhookSecret();
         if (secret != null && !secret.isBlank()) {
             String signature = computeHmac(body, secret);
@@ -82,7 +82,7 @@ public class WebhookWorker extends BaseNotificationWorker {
                 HttpResponse.BodyHandlers.ofString()
         );
 
-        // Anything outside 2xx counts as a failure, which sends the notification down the retry path.
+        // anything that isn't 2xx counts as a failure and goes down the retry path
         int statusCode = response.statusCode();
         if (statusCode < 200 || statusCode >= 300) {
             throw new RuntimeException("Webhook returned HTTP " + statusCode + ": " + response.body());

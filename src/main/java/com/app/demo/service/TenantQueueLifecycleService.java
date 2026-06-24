@@ -1,6 +1,8 @@
 package com.app.demo.service;
 
+import java.time.Instant;
 import java.util.List;
+import java.util.UUID;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -14,9 +16,11 @@ import org.springframework.amqp.rabbit.core.RabbitAdmin;
 import org.springframework.amqp.rabbit.listener.MessageListenerContainer;
 import org.springframework.amqp.rabbit.listener.RabbitListenerContainerFactory;
 import org.springframework.amqp.rabbit.listener.RabbitListenerEndpointRegistry;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.core.annotation.Order;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
@@ -26,6 +30,8 @@ import com.app.demo.config.NotificationQueueNaming;
 import com.app.demo.config.QueueStrategyMode;
 import com.app.demo.model.Tenant;
 import com.app.demo.model.enums.NotificationChannel;
+import com.app.demo.repository.NotificationRepository;
+import com.app.demo.repository.OutboxEventRepository;
 import com.app.demo.repository.TenantRepository;
 import com.app.demo.worker.EmailWorker;
 import com.app.demo.worker.WebhookWorker;
@@ -39,16 +45,24 @@ public class TenantQueueLifecycleService {
     private final RabbitListenerEndpointRegistry endpointRegistry;
     private final RabbitListenerContainerFactory<? extends MessageListenerContainer> containerFactory;
     private final TenantRepository tenantRepository;
+    private final OutboxEventRepository outboxEventRepository;
+    private final NotificationRepository notificationRepository;
     private final EmailWorker emailWorker;
     private final WebhookWorker webhookWorker;
     private final NotificationQueueConfig notificationQueueConfig;
-    
+
+    // how long we let a deleted tenant finish its backlog before we just remove the queues and fail the rest
+    @Value("${app.tenant-drain.grace-seconds:120}")
+    private long drainGraceSeconds;
+
     public TenantQueueLifecycleService(
             RabbitAdmin rabbitAdmin,
             TopicExchange notificationsExchange,
             RabbitListenerEndpointRegistry endpointRegistry,
             RabbitListenerContainerFactory<? extends MessageListenerContainer> containerFactory,
             TenantRepository tenantRepository,
+            OutboxEventRepository outboxEventRepository,
+            NotificationRepository notificationRepository,
             EmailWorker emailWorker,
             WebhookWorker webhookWorker,
             NotificationQueueConfig notificationQueueConfig) {
@@ -57,6 +71,8 @@ public class TenantQueueLifecycleService {
         this.endpointRegistry = endpointRegistry;
         this.containerFactory = containerFactory;
         this.tenantRepository = tenantRepository;
+        this.outboxEventRepository = outboxEventRepository;
+        this.notificationRepository = notificationRepository;
         this.emailWorker = emailWorker;
         this.webhookWorker = webhookWorker;
         this.notificationQueueConfig = notificationQueueConfig;
@@ -100,10 +116,10 @@ public class TenantQueueLifecycleService {
             return;
         }
 
-        String tenantId = tenant.getId().toString();
-
         if (tenant.isDeleted()) {
-            removeTenantResources(tenantId);
+            // don't remove the queues yet, let them finish delivering what's already in them.
+            // drainDeletedTenants() does the cleanup once they're empty
+            log.info("Tenant {} soft-deleted; draining its queues before teardown", tenant.getId());
             return;
         }
 
@@ -134,6 +150,57 @@ public class TenantQueueLifecycleService {
 
     public String routingKeyFor(NotificationChannel channel, java.util.UUID tenantId) {
         return NotificationQueueNaming.routingKey(channel, tenantId, notificationQueueConfig.getMode());
+    }
+
+    public boolean destinationQueueExists(NotificationChannel channel, UUID tenantId) {
+        if (notificationQueueConfig.isShared()) {
+            return true;
+        }
+        String queueName = NotificationQueueNaming.queueName(channel, tenantId, QueueStrategyMode.PER_TENANT);
+        return rabbitAdmin.getQueueProperties(queueName) != null;
+    }
+
+    @Scheduled(fixedDelayString = "${app.tenant-drain.poll-ms:1000}")
+    public void drainDeletedTenants() {
+        if (notificationQueueConfig.isShared()) {
+            return; // per-tenant queues only
+        }
+        for (Tenant tenant : tenantRepository.findAllByDeletedAtIsNotNull()) {
+            drainChannel(tenant, NotificationChannel.EMAIL);
+            drainChannel(tenant, NotificationChannel.WEBHOOK);
+        }
+    }
+
+    private void drainChannel(Tenant tenant, NotificationChannel channel) {
+        String queueName = NotificationQueueNaming.queueName(channel, tenant.getId(), QueueStrategyMode.PER_TENANT);
+        String listenerId = NotificationQueueNaming.listenerId(channel, tenant.getId(), QueueStrategyMode.PER_TENANT);
+
+        if (rabbitAdmin.getQueueProperties(queueName) == null) {
+            return; // already gone
+        }
+
+        // safe to remove once nothing's in flight and the outbox has nothing left to send
+        boolean inFlight = notificationRepository.countInFlightForTenantAndChannel(
+                tenant.getId(), channel.name()) > 0;
+        boolean outboxPending = outboxEventRepository.countUnpublishedByTenant(tenant.getId()) > 0;
+
+        if (!inFlight && !outboxPending) {
+            removeQueueAndListener(queueName, listenerId);
+            log.info("Drained and removed {} for soft-deleted tenant {}", queueName, tenant.getId());
+            return;
+        }
+
+        if (drainDeadlinePassed(tenant)) {
+            int failed = notificationRepository.markUndeliveredAsFailedForTenant(tenant.getId());
+            removeQueueAndListener(queueName, listenerId);
+            log.warn("Drain deadline exceeded for tenant {}; force-removed {} and marked {} notification(s) FAILED",
+                    tenant.getId(), queueName, failed);
+        }
+    }
+
+    private boolean drainDeadlinePassed(Tenant tenant) {
+        Instant deletedAt = tenant.getDeletedAt();
+        return deletedAt != null && Instant.now().isAfter(deletedAt.plusSeconds(drainGraceSeconds));
     }
 
     private void ensureSharedTopology() {

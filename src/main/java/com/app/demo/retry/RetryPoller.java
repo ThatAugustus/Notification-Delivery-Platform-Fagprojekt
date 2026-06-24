@@ -46,7 +46,7 @@ public class RetryPoller {
                 .register(meterRegistry);
     }
 
-    // Runs every 2 seconds to find and re-queue notifications that are due for retry
+    // runs every 2 seconds and re-queues notifications that are due for a retry
     @Scheduled(fixedDelay = 2000)
     @Transactional
     public void pollAndRetry() {

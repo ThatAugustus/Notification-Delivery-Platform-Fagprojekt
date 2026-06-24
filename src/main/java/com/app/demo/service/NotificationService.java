@@ -53,8 +53,8 @@ public class NotificationService {
                             request.getIdempotencyKey(), cachedId);
                     return cached.get();
                 }
-                // Redis held an id the database no longer has (e.g. a rolled-back insert).
-                // Ignore it and fall through to the DB check / create path.
+                // redis had an id the db doesn't have anymore (like a rolled-back insert)
+                // ignore it and fall through to the db check / create path
                 log.warn("Stale Redis idempotency entry: key={} pointed to missing notification={}, ignoring",
                         request.getIdempotencyKey(), cachedId);
             }
