@@ -45,14 +45,13 @@ class TenantSoftDeleteDeliveryTest extends BaseIntegrationTest {
     }
 
     @Test
-    @DisplayName("Soft delete of an idle tenant refuses new work and removes its queues")
+    @DisplayName("Soft delete of an idle tenant refuses new work")
     void softDelete_stopsIdleTenantCleanly() {
         String tenantId = createTenant();
         String rawKey = createKey(tenantId, "active");
 
-        String emailQueue = "email-queue." + tenantId;
-        String webhookQueue = "webhook-queue." + tenantId;
-
+        // NB: shared-queue architecture — there are no per-tenant queues to assert on;
+        // soft delete's observable contract is: delivered while active, then 401 on new work + 404 on lookup.
         String recipient = "active-" + UUID.randomUUID() + "@example.com";
         UUID notificationId = submitEmail(rawKey, recipient);
 
@@ -62,10 +61,6 @@ class TenantSoftDeleteDeliveryTest extends BaseIntegrationTest {
         });
         assertThat(mockEmailProvider.getSentEmails())
                 .anyMatch(e -> e.to().equals(recipient));
-
-        assertThat(rabbitAdmin.getQueueProperties(emailQueue))
-                .as("email queue should exist while the tenant is active")
-                .isNotNull();
 
         ResponseEntity<Void> delete = restTemplate.exchange(
                 "/api/v1/admin/tenants/" + tenantId,
@@ -91,15 +86,6 @@ class TenantSoftDeleteDeliveryTest extends BaseIntegrationTest {
                 new HttpEntity<>(adminHeaders()),
                 MAP_TYPE);
         assertThat(get.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
-
-        await().atMost(15, TimeUnit.SECONDS).untilAsserted(() -> {
-            assertThat(rabbitAdmin.getQueueProperties(emailQueue))
-                    .as("email queue should be deleted after soft delete")
-                    .isNull();
-            assertThat(rabbitAdmin.getQueueProperties(webhookQueue))
-                    .as("webhook queue should be deleted after soft delete")
-                    .isNull();
-        });
     }
 
     @Test
