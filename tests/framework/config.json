@@ -16,6 +16,9 @@
     "duration_seconds": 40,
     "channels": ["EMAIL"],
 
+    "//bad_request_fraction": "Chaos: fraction (0..1) of requests sent malformed (missing fields / bad JSON / bad API key). They must all be rejected (4xx) and never persisted or delivered. 0 = off. Override with --bad-requests.",
+    "bad_request_fraction": 0.01,
+
     "//tenants": "List as many tenants as you want by name; the script creates any that don't exist and restarts the app (ndp-app) once so their workers register. Tenants persist between runs (reused, not deleted). 'weight' sets each tenant's share of the total rate — use unequal weights (e.g. 10 vs 1) for noisy-neighbour / fairness runs.",
     "tenants": [
       { "name": "ndp-test-a", "weight": 1 },

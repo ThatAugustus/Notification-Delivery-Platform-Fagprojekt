@@ -29,7 +29,7 @@ import io.micrometer.core.instrument.MeterRegistry;
 public class OutboxPublisher {
 
     private static final Logger log = LoggerFactory.getLogger(OutboxPublisher.class);
-    private static final int BATCH_SIZE = 200;
+    private static final int BATCH_SIZE = 250;
 
     private final OutboxEventRepository outboxEventRepository;
     private final NotificationRepository notificationRepository;

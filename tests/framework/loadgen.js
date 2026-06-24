@@ -20,6 +20,11 @@ const accepted = new Counter('notifications_accepted');
 const rejected = new Counter('notifications_rejected');
 const apiLatency = new Trend('api_latency', true);
 
+// Chaos: malformed requests. Each must be REJECTED (4xx) and never persisted/delivered.
+const badSubmitted = new Counter('bad_submitted');
+const badRejected = new Counter('bad_rejected');   // correctly refused (non-2xx)
+const badAccepted = new Counter('bad_accepted');   // wrongly let in (2xx) — a validation bug
+
 const CFG = JSON.parse(__ENV.NDP_CFG);
 const TARGETS = JSON.parse(__ENV.NDP_TARGETS);
 
@@ -96,10 +101,40 @@ const TENANT_POOL = (() => {
   return pool;
 })();
 
+// Send one deliberately-malformed request. All three variants are rejected
+// BEFORE any persistence (validation / auth / parsing), so a correct system
+// never creates a row or delivers anything for them.
+function sendBad(t, uid) {
+  badSubmitted.add(1);
+  const goodHdr = { 'Content-Type': 'application/json', 'X-API-Key': t.apiKey };
+  let body, headers;
+  switch ((__VU + __ITER) % 3) {
+    case 0:  // missing required fields → 400 (@Valid)
+      body = JSON.stringify({ channel: 'EMAIL', subject: 'NDP-BAD' });
+      headers = goodHdr; break;
+    case 1:  // malformed JSON → 400 (message converter)
+      body = '{ not valid json ';
+      headers = goodHdr; break;
+    default: // valid body, invalid API key → 401 (auth)
+      body = JSON.stringify({ channel: 'EMAIL', recipient: `${uid}@ndp-test.local`,
+                              content: 'x', idempotencyKey: uid });
+      headers = { 'Content-Type': 'application/json', 'X-API-Key': 'ndp-invalid-key' };
+  }
+  const res = http.post(`${CFG.base_url}/api/v1/notifications`, body, { headers });
+  if (res.status === 202) badAccepted.add(1);   // garbage got in — a bug
+  else badRejected.add(1);                       // correctly refused
+}
+
 export function send() {
   const t = TENANT_POOL[(__VU + __ITER) % TENANT_POOL.length];
-  const channel = CFG.channels[(__VU + __ITER) % CFG.channels.length];
   const uid = `${CFG.run_id}-${__VU}-${__ITER}`;
+
+  if (CFG.bad_fraction > 0 && Math.random() < CFG.bad_fraction) {
+    sendBad(t, uid);
+    return;
+  }
+
+  const channel = CFG.channels[(__VU + __ITER) % CFG.channels.length];
 
   const payload = {
     channel: channel,
@@ -127,6 +162,9 @@ export function handleSummary(data) {
   const summary = {
     submitted: m.notifications_accepted ? m.notifications_accepted.values.count : 0,
     rejected: m.notifications_rejected ? m.notifications_rejected.values.count : 0,
+    bad_submitted: m.bad_submitted ? m.bad_submitted.values.count : 0,
+    bad_rejected: m.bad_rejected ? m.bad_rejected.values.count : 0,
+    bad_accepted: m.bad_accepted ? m.bad_accepted.values.count : 0,
     submit_rate: m.http_reqs ? m.http_reqs.values.rate : 0,
     api_avg_ms: m.http_req_duration ? m.http_req_duration.values.avg : 0,
     api_p95_ms: m.http_req_duration ? m.http_req_duration.values['p(95)'] : 0,

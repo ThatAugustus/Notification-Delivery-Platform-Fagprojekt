@@ -375,6 +375,7 @@ def run_load(ctx, run_id, targets):
         "pattern": ctx.load["pattern"],
         "channels": ctx.load["channels"],
         "webhook_url": ctx.load.get("webhook_url", ""),
+        "bad_fraction": ctx.load.get("bad_request_fraction", 0),
     }
     print(f"  pattern={c(cfg['pattern'], Y)} rate={c(cfg['rate'], Y)}/s "
           f"duration={c(cfg['duration'], Y)}s channels={cfg['channels']} "
@@ -567,6 +568,9 @@ def conservation(ctx, run_id, tids, baseline, k6, drain_timed_out):
 
     submitted = int(k6.get("submitted", 0))
     rejected = int(k6.get("rejected", 0))
+    bad_submitted = int(k6.get("bad_submitted", 0))
+    bad_rejected = int(k6.get("bad_rejected", 0))
+    bad_accepted = int(k6.get("bad_accepted", 0))
     accepted_db = psql_int(ctx, f"SELECT COUNT(*) FROM notifications WHERE {scope}")
     distinct_subject = psql_int(ctx, f"SELECT COUNT(DISTINCT subject) FROM notifications WHERE {scope}")
     delivered = psql_int(ctx, f"SELECT COUNT(*) FROM notifications WHERE {scope} AND status='DELIVERED'")
@@ -608,7 +612,8 @@ def conservation(ctx, run_id, tids, baseline, k6, drain_timed_out):
              mailpit=mailpit,
              peak_rate=prof["peak_rate"], active_span=prof["active_span"],
              delivery_per_second=prof["per_second"], per_tenant=per_tenant,
-             latency=latency)
+             latency=latency,
+             bad_submitted=bad_submitted, bad_rejected=bad_rejected, bad_accepted=bad_accepted)
 
     # ── invariants: (name, ok, detail) ──
     inv = []
@@ -626,6 +631,10 @@ def conservation(ctx, run_id, tids, baseline, k6, drain_timed_out):
     inv.append(("no duplicate delivery (mailpit/escaped)", dup_b == 0,
                 f"{dup_b} extra emails vs {email_total} unique" if dup_b
                 else f"mailpit {mailpit} = {email_total} unique emails"))
+    # Only assert this when bad-request chaos was actually injected.
+    if bad_submitted > 0:
+        inv.append(("bad requests kept out", bad_accepted == 0,
+                    f"{bad_rejected}/{bad_submitted} rejected, {bad_accepted} wrongly accepted"))
 
     diagnostics = {}
     if dup_a > 0:
@@ -716,6 +725,10 @@ def scorecard(env, run_id, baseline, ctx, k6, events, drain_s, drain_timed_out,
     line("Delivered", m["delivered"], pct(m["delivered"], m["accepted_db"]))
     line("Delivery attempts", f"SUCCESS {m['da_success']} · FAIL {m['da_fail']}")
     line("Mailpit received", m["mailpit"])
+    if m.get("bad_submitted", 0):
+        ba = m["bad_accepted"]
+        tag = c(f"{ba} wrongly accepted", R) if ba else c("0 leaked through", G)
+        line("Bad requests (chaos)", f"{m['bad_submitted']} sent · {m['bad_rejected']} rejected", tag)
     line("Drain time", f"{drain_s}s" + (c("  TIMEOUT", R) if drain_timed_out else ""))
 
     hr()
@@ -844,6 +857,8 @@ def main():
     ap.add_argument("--no-teardown", action="store_true", help="keep test tenants after the run")
     ap.add_argument("--note", default="", help="short label for this run (e.g. 'after fairness change'); "
                     "shown in the scorecard and added to the report filename")
+    ap.add_argument("--bad-requests", type=float, default=None, metavar="FRACTION",
+                    help="chaos: fraction (0..1) of requests sent malformed; must all be rejected, never persisted")
     args = ap.parse_args()
 
     with open(args.config) as f:
@@ -851,6 +866,7 @@ def main():
     if args.pattern: cfg["load"]["pattern"] = args.pattern
     if args.rate: cfg["load"]["rate"] = args.rate
     if args.duration: cfg["load"]["duration_seconds"] = args.duration
+    if args.bad_requests is not None: cfg["load"]["bad_request_fraction"] = args.bad_requests
     if args.chaos: cfg["chaos"]["enabled"] = True
 
     ctx = Ctx(cfg)
