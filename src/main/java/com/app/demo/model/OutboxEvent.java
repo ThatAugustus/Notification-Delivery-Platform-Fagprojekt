@@ -32,6 +32,11 @@ public class OutboxEvent {
     @JoinColumn(name = "notification_id", nullable = false)
     private Notification notification;
 
+    // Denormalized from notification.tenant so the outbox poller's fairness queries
+    // don't have to join notifications to bucket/filter by tenant.
+    @Column(name = "tenant_id", nullable = false)
+    private UUID tenantId;
+
     @Column(nullable = false, columnDefinition = "TEXT")
     private String payload;
 
@@ -60,6 +65,7 @@ public class OutboxEvent {
     public OutboxEvent(Notification notification, String payload) {
         this.notification = notification;
         this.payload = payload;
+        this.tenantId = notification.getTenant().getId();
     }
 
     public void markPublished() {
