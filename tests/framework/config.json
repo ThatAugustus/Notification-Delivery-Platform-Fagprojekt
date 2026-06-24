@@ -1,6 +1,6 @@
 {
   "base_url": "http://localhost:8080",
-  "admin_key": "dev-admin-key-change-me-in-prod",
+  "admin_key": "local-dev-fallback-key",
   "mailpit_url": "http://localhost:8025",
   "db_container": "ndp-postgres",
   "db_user": "dev",
@@ -12,7 +12,7 @@
 
   "load": {
     "pattern": "ramp",
-    "rate": 300,
+    "rate": 400,
     "duration_seconds": 30,
     "channels": ["EMAIL"],
 

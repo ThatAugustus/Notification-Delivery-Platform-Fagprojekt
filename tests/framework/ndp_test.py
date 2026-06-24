@@ -24,6 +24,7 @@ import argparse
 import base64
 import json
 import os
+import re
 import subprocess
 import sys
 import threading
@@ -45,6 +46,10 @@ G, R, Y, C, DIM, B, NC = (
     "\033[2m", "\033[1m", "\033[0m",
 )
 def c(s, col): return f"{col}{s}{NC}"
+def slugify(text, maxlen=40):
+    """'after fairness change, batch=200' -> 'after-fairness-change-batch-200'"""
+    s = re.sub(r"[^a-z0-9]+", "-", (text or "").lower()).strip("-")
+    return s[:maxlen].strip("-")
 def hr(): print(C + "─" * 67 + NC)
 def head(s): print("\n" + C + "═" * 67 + NC + f"\n{B}  {s}{NC}\n" + C + "═" * 67 + NC)
 
@@ -56,7 +61,7 @@ class Ctx:
     """Everything the run needs, loaded from config + overrides."""
     def __init__(self, cfg):
         self.base_url = cfg["base_url"].rstrip("/")
-        self.admin_key = cfg["admin_key"]
+        self.admin_key = os.getenv("ADMIN_API_KEY", cfg["admin_key"])
         self.mailpit_url = cfg["mailpit_url"].rstrip("/")
         self.db_container = cfg["db_container"]
         self.db_user = cfg["db_user"]
@@ -679,6 +684,8 @@ def scorecard(env, run_id, baseline, ctx, k6, events, drain_s, drain_timed_out,
 
     print(f"  {B}Environment{NC}  {env['cpu']} · {env['ram']} · {env['os']} · {env['host']}")
     print(f"  {B}Run id{NC}       {run_id}")
+    if getattr(ctx, "note", ""):
+        print(f"  {B}Note{NC}         {ctx.note}")
     print(f"  {B}Baseline{NC}     {baseline}")
     ld = ctx.load
     print(f"  {B}Load{NC}         {ld['rate']}/s · {ld['pattern']} · {ld['duration_seconds']}s · "
@@ -715,14 +722,15 @@ def scorecard(env, run_id, baseline, ctx, k6, events, drain_s, drain_timed_out,
     lat = m.get("latency")
     if lat:
         hr()
-        print(f"  {B}Latency breakdown{NC}  {DIM}(where a message spends its time — p50 / p95){NC}")
+        print(f"  {B}Latency breakdown{NC}  {DIM}(time a message spends in each stage — p50 / p95, in seconds){NC}")
+        print(f"    {'stage':<22}{'p50':>8}{'p95':>9}")
         rows = [
             ("accept → published", lat["outbox_p50"], lat["outbox_p95"], "outbox publisher (global)"),
             ("published → delivered", lat["deliver_p50"], lat["deliver_p95"], "per-tenant queue + worker"),
             ("end-to-end", lat["e2e_p50"], lat["e2e_p95"], ""),
         ]
         for name, p50, p95, note in rows:
-            print(f"    {name:<22}{c(f'{p50:>6.1f}', Y)} / {c(f'{p95:>6.1f}', Y)} s   {DIM}{note}{NC}")
+            print(f"    {name:<22}{c(f'{p50:>6.2f}s', Y)} / {c(f'{p95:>6.2f}s', Y)}   {DIM}{note}{NC}")
         e2e = lat["e2e_p50"] or 1
         if lat["outbox_p50"] / e2e > 0.6:
             print(f"    {c('→', C)} outbox publish is {lat['outbox_p50']/e2e*100:.0f}% of latency — "
@@ -736,14 +744,14 @@ def scorecard(env, run_id, baseline, ctx, k6, events, drain_s, drain_timed_out,
         weights = {t["id"]: t.get("weight", 1) for t in targets}
         tot_deliv = sum(t["delivered"] for t in pt) or 1
         hr()
-        print(f"  {B}Per-tenant{NC}  {DIM}(throughput + end-to-end latency; share vs weight shows split fairness){NC}")
-        print(f"    {'tenant':<14}{'wt':>3}{'subm':>7}{'deliv':>7}{'share':>7}{'avg/s':>7}{'peak/s':>7}{'p50':>7}{'p95':>7}")
+        print(f"  {B}Per-tenant{NC}  {DIM}(rates in msg/s · end-to-end latency p50/p95 in seconds · share vs weight = split fairness){NC}")
+        print(f"    {'tenant':<14}{'wt':>3}{'subm':>7}{'deliv':>7}{'share':>7}{'avg/s':>7}{'peak/s':>7}{'p50(s)':>8}{'p95(s)':>8}")
         for t in pt:
             nm = names.get(t["tenant_id"], t["tenant_id"][:8])
             share = t["delivered"] / tot_deliv * 100
             print(f"    {nm:<14}{weights.get(t['tenant_id'],1):>3}{t['total']:>7}{t['delivered']:>7}"
                   f"{share:>6.1f}%{t['avg_rate']:>7.0f}{t['peak_rate']:>7.0f}"
-                  f"{t['p50_latency_s']:>6.1f}{t['p95_latency_s']:>6.1f}")
+                  f"{t['p50_latency_s']:>8.1f}{t['p95_latency_s']:>8.1f}")
 
     hr()
     print(f"  {B}Correctness{NC}")
@@ -782,9 +790,13 @@ def scorecard(env, run_id, baseline, ctx, k6, events, drain_s, drain_timed_out,
 
 def save_json(run_id, env, baseline, ctx, k6, events, drain_s, drain_timed_out, m, inv, diagnostics, verdict_pass, samples):
     os.makedirs(RESULTS_DIR, exist_ok=True)
-    path = os.path.join(RESULTS_DIR, f"framework-{run_id}.json")
+    note = getattr(ctx, "note", "")
+    slug = slugify(note)
+    fname = f"framework-{run_id}" + (f"-{slug}" if slug else "") + ".json"
+    path = os.path.join(RESULTS_DIR, fname)
     out = {
         "run_id": run_id,
+        "note": note,
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "environment": env,
         "baseline_db_clock": baseline,
@@ -817,6 +829,8 @@ def main():
     ap.add_argument("--duration", type=int)
     ap.add_argument("--chaos", action="store_true", help="enable chaos faults from config")
     ap.add_argument("--no-teardown", action="store_true", help="keep test tenants after the run")
+    ap.add_argument("--note", default="", help="short label for this run (e.g. 'after fairness change'); "
+                    "shown in the scorecard and added to the report filename")
     args = ap.parse_args()
 
     with open(args.config) as f:
@@ -827,6 +841,7 @@ def main():
     if args.chaos: cfg["chaos"]["enabled"] = True
 
     ctx = Ctx(cfg)
+    ctx.note = (args.note or cfg.get("note", "")).strip()
     run_id = datetime.now().strftime("%Y%m%d-%H%M%S")
     env = environment()
 

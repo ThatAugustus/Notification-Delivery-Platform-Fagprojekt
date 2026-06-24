@@ -29,7 +29,7 @@ import io.micrometer.core.instrument.MeterRegistry;
 public class OutboxPublisher {
 
     private static final Logger log = LoggerFactory.getLogger(OutboxPublisher.class);
-    private static final int BATCH_SIZE = 100;
+    private static final int BATCH_SIZE = 200;
 
     private final OutboxEventRepository outboxEventRepository;
     private final NotificationRepository notificationRepository;
@@ -54,7 +54,7 @@ public class OutboxPublisher {
                 .register(meterRegistry);
     }
 
-    @Scheduled(fixedDelay = 1000) // 1000ms = 1 second.
+    @Scheduled(fixedDelay = 200) // ms
     @Transactional // spring handles the db transaction, ensuring atomicity
     public void pollAndPublish() {
         List<PendingOutboxTenantView> pendingTenants = outboxEventRepository.findPendingTenants(BATCH_SIZE);
@@ -142,6 +142,7 @@ public class OutboxPublisher {
             );
             event.markPublished();
             outboxEventRepository.save(event);
+            notificationRepository.markQueuedIfAccepted(notification.getId());
             publishedCounter.increment();
             log.info("Published outbox event {} for notification {} via {}",
                     event.getId(), notification.getId(), routingKey);
