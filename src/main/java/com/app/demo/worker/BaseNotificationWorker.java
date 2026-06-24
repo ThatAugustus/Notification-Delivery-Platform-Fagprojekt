@@ -87,6 +87,7 @@ public abstract class BaseNotificationWorker {
                 Counter.builder("worker.processed")
                         .tag("channel", channelTag)
                         .tag("result", "already_delivered")
+                        .tag("tenant", tenantTag)
                         .description("Messages already successfully delivered by workers")
                         .register(meterRegistry).increment();
 
@@ -122,6 +123,7 @@ public abstract class BaseNotificationWorker {
             Counter.builder("worker.processed")
                     .tag("channel", channel)
                     .tag("result", "success")
+                    .tag("tenant", tenantId)
                     .description("Messages successfully delivered by workers")
                     .register(meterRegistry).increment();
 
@@ -204,6 +206,7 @@ public abstract class BaseNotificationWorker {
                     Counter.builder("worker.errors")
                             .tag("channel", "unknown")
                             .tag("error", errorReason)
+                            .tag("tenant", "unknown")
                             .register(meterRegistry).increment();
                     throw new AmqpRejectAndDontRequeueException("Unrecoverable: " + e.getMessage(), e);
             }

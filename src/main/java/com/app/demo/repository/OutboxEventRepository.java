@@ -48,4 +48,7 @@ public interface OutboxEventRepository extends JpaRepository<OutboxEvent, UUID> 
     List<OutboxEvent> findUnpublishedBatchForTenant(
             @Param("tenantId") UUID tenantId,
             @Param("batchSize") int batchSize);
+
+    @Query("SELECT COUNT(e) FROM OutboxEvent e WHERE e.published = false AND e.notification.tenant.id = :tenantId")
+    long countUnpublishedByTenant(@Param("tenantId") UUID tenantId);
 }

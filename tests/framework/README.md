@@ -6,12 +6,13 @@ breaks.
 
 ```bash
 # default run (reads config.json)
-python3 tests/framework/ndp_test.py
+python3 tests/framework/ndp_test.py # if not explicit comment when running, config default settings are used
 
 # quick overrides
-python3 tests/framework/ndp_test.py --pattern spike --rate 300 --duration 60
+python3 tests/framework/ndp_test.py --pattern spike --rate 300 --duration 60 --note "spike load pattern httpreq/s=300 duration=60s"
 python3 tests/framework/ndp_test.py --chaos          # enable faults from config.json
 python3 tests/framework/ndp_test.py --no-teardown    # keep test tenants to inspect
+python3 tests/framework/ndp_test.py --bad-requests 0.1 --note "10% bad requests"
 ```
 
 Needs `python3`, `k6`, `docker` (the compose stack must be up and the app on :8080).

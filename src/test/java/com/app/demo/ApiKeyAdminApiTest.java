@@ -191,6 +191,34 @@ class ApiKeyAdminApiTest extends BaseIntegrationTest {
 
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
         }
+
+        @Test
+        @DisplayName("Disabled tenant channel is rejected with 400")
+        void disabledChannel_isRejected() {
+            String tenantId = createTenantWithEmailDisabled();
+            String rawKey = createKey(tenantId, "email-disabled");
+
+            String notifBody = """
+                {
+                    "channel": "EMAIL",
+                    "recipient": "disabled-channel@example.com",
+                    "subject": "Should fail",
+                    "content": "Email is disabled for this tenant",
+                    "idempotencyKey": "disabled-channel-%s"
+                }
+                """.formatted(UUID.randomUUID());
+
+            var response = restTemplate.exchange(
+                    "/api/v1/notifications",
+                    HttpMethod.POST,
+                    new HttpEntity<>(notifBody, tenantHeaders(rawKey)),
+                    MAP_TYPE
+            );
+
+            assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+            assertThat(response.getBody().get("message")).isEqualTo("EMAIL channel is disabled for this tenant");
+        }
+
         @Nested
         @DisplayName("Cross-tenant revoke protection")
         class RevokeSecurityTests {
@@ -251,6 +279,32 @@ class ApiKeyAdminApiTest extends BaseIntegrationTest {
     private String createTenant() {
         String body = """
             { "name": "API Key Test Tenant %s" }
+            """.formatted(UUID.randomUUID());
+
+        ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
+                "/api/v1/admin/tenants",
+                HttpMethod.POST,
+                new HttpEntity<>(body, adminHeaders()),
+                MAP_TYPE
+        );
+
+        if (!response.getStatusCode().is2xxSuccessful()) {
+            throw new AssertionError("Failed to create tenant. Status: " + response.getStatusCode()
+                    + " Body: " + response.getBody());
+        }
+        Object id = response.getBody() == null ? null : response.getBody().get("id");
+        if (id == null) {
+            throw new AssertionError("Tenant response missing 'id' field. Body: " + response.getBody());
+        }
+        return id.toString();
+    }
+
+    private String createTenantWithEmailDisabled() {
+        String body = """
+            {
+                "name": "Email Disabled Tenant %s",
+                "emailEnabled": false
+            }
             """.formatted(UUID.randomUUID());
 
         ResponseEntity<Map<String, Object>> response = restTemplate.exchange(

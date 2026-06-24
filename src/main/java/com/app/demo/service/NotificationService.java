@@ -1,5 +1,6 @@
 package com.app.demo.service;
 
+import java.util.Locale;
 import java.util.UUID;
 
 import org.slf4j.Logger;
@@ -53,8 +54,8 @@ public class NotificationService {
                             request.getIdempotencyKey(), cachedId);
                     return cached.get();
                 }
-                // Redis held an id the database no longer has (e.g. a rolled-back insert).
-                // Ignore it and fall through to the DB check / create path.
+                // redis had an id the db doesn't have anymore (like a rolled-back insert)
+                // ignore it and fall through to the db check / create path
                 log.warn("Stale Redis idempotency entry: key={} pointed to missing notification={}, ignoring",
                         request.getIdempotencyKey(), cachedId);
             }
@@ -71,8 +72,11 @@ public class NotificationService {
             }
         }
 
+        NotificationChannel channel = parseChannel(request.getChannel());
+        validateChannelEnabled(tenant, channel);
+
         // Validate webhook requests have a URL
-        if (request.getChannel().equals("WEBHOOK") &&
+        if (channel == NotificationChannel.WEBHOOK &&
                 (request.getWebhookUrl() == null || request.getWebhookUrl().isBlank())) {
             throw new IllegalStateException("webhookUrl is required for WEBHOOK channel");
         }
@@ -80,7 +84,7 @@ public class NotificationService {
         // Create and save the notification
         Notification notification = new Notification(
                 tenant,
-                NotificationChannel.valueOf(request.getChannel()),
+                channel,
                 request.getRecipient(),
                 request.getSubject(),
                 request.getContent()
@@ -124,6 +128,23 @@ public class NotificationService {
             return objectMapper.writeValueAsString(payload);
         } catch (Exception e) {
             throw new RuntimeException("Failed to serialize notification payload", e);
+        }
+    }
+    
+    private NotificationChannel parseChannel(String channel) {
+        try {
+            return NotificationChannel.valueOf(channel.toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("Unknown notification channel: " + channel);
+        }
+    }
+
+    private void validateChannelEnabled(Tenant tenant, NotificationChannel channel) {
+        if (channel == NotificationChannel.EMAIL && !tenant.isEmailEnabled()) {
+            throw new IllegalStateException("EMAIL channel is disabled for this tenant");
+        }
+        if (channel == NotificationChannel.WEBHOOK && !tenant.isWebhookEnabled()) {
+            throw new IllegalStateException("WEBHOOK channel is disabled for this tenant");
         }
     }
 }

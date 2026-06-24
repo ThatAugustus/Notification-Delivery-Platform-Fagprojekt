@@ -1,0 +1,392 @@
+{
+  "run_id": "20260624-154125",
+  "note": "shared que fixedDelay 200ms batchSize=250",
+  "timestamp": "2026-06-24T13:42:26.616683+00:00",
+  "environment": {
+    "host": "00b98c024a",
+    "cpu": "Apple M1 Pro",
+    "ram": "16.0 GB",
+    "os": "26.5.1"
+  },
+  "baseline_db_clock": "2026-06-24 13:41:26.067938+00",
+  "config": {
+    "load": {
+      "pattern": "ramp",
+      "rate": 450,
+      "duration_seconds": 40,
+      "channels": [
+        "EMAIL"
+      ],
+      "//tenants": "List as many tenants as you want by name; the script creates any that don't exist and restarts the app (ndp-app) once so their workers register. Tenants persist between runs (reused, not deleted). 'weight' sets each tenant's share of the total rate \u2014 use unequal weights (e.g. 10 vs 1) for noisy-neighbour / fairness runs.",
+      "tenants": [
+        {
+          "name": "ndp-test-a",
+          "weight": 1
+        },
+        {
+          "name": "ndp-test-b",
+          "weight": 10
+        },
+        {
+          "name": "ndp-test-c",
+          "weight": 2
+        },
+        {
+          "name": "ndp-test-d",
+          "weight": 3
+        }
+      ],
+      "webhook_url": "http://host.docker.internal:8080/actuator/health"
+    },
+    "chaos": {
+      "enabled": false,
+      "faults": [
+        {
+          "label": "broker_outage",
+          "container": "ndp-rabbitmq",
+          "action": "pause",
+          "at_seconds": 10,
+          "duration_seconds": 10
+        }
+      ]
+    },
+    "limits": {
+      "drain_timeout_seconds": 500,
+      "drain_poll_seconds": 3,
+      "stall_seconds": 60
+    }
+  },
+  "k6": {
+    "submitted": 12579,
+    "rejected": 0,
+    "submit_rate": 314.28961626984324,
+    "api_avg_ms": 66.90705310438021,
+    "api_p95_ms": 338.4182999999996,
+    "api_max_ms": 1271.339,
+    "http_error_rate": 0,
+    "duration_s": 40.023593999999996
+  },
+  "chaos_events": [],
+  "drain_seconds": 55,
+  "drain_timed_out": false,
+  "peak_delivery_rate": 587.4,
+  "active_delivery_span_s": 54,
+  "metrics": {
+    "submitted": 12579,
+    "rejected": 0,
+    "accepted_db": 12579,
+    "distinct_subject": 12579,
+    "delivered": 12579,
+    "failed": 0,
+    "nonterminal": 0,
+    "email_total": 12579,
+    "email_delivered": 12579,
+    "outbox_pub": 12579,
+    "outbox_unpub": 0,
+    "da_success": 12579,
+    "da_fail": 0,
+    "dup_a": 0,
+    "dup_b": 0,
+    "mailpit": 12579,
+    "peak_rate": 587.4,
+    "active_span": 54,
+    "delivery_per_second": [
+      [
+        0,
+        19
+      ],
+      [
+        1,
+        92
+      ],
+      [
+        2,
+        175
+      ],
+      [
+        3,
+        300
+      ],
+      [
+        4,
+        443
+      ],
+      [
+        5,
+        526
+      ],
+      [
+        6,
+        649
+      ],
+      [
+        7,
+        679
+      ],
+      [
+        8,
+        812
+      ],
+      [
+        9,
+        967
+      ],
+      [
+        10,
+        1120
+      ],
+      [
+        11,
+        1205
+      ],
+      [
+        12,
+        1249
+      ],
+      [
+        13,
+        1385
+      ],
+      [
+        14,
+        1543
+      ],
+      [
+        15,
+        1721
+      ],
+      [
+        16,
+        1997
+      ],
+      [
+        17,
+        2213
+      ],
+      [
+        18,
+        2345
+      ],
+      [
+        19,
+        2484
+      ],
+      [
+        20,
+        2643
+      ],
+      [
+        21,
+        2772
+      ],
+      [
+        22,
+        2811
+      ],
+      [
+        23,
+        2839
+      ],
+      [
+        24,
+        3072
+      ],
+      [
+        25,
+        3078
+      ],
+      [
+        26,
+        3143
+      ],
+      [
+        27,
+        3359
+      ],
+      [
+        28,
+        3625
+      ],
+      [
+        29,
+        3979
+      ],
+      [
+        30,
+        4209
+      ],
+      [
+        31,
+        4413
+      ],
+      [
+        32,
+        4670
+      ],
+      [
+        33,
+        4901
+      ],
+      [
+        34,
+        5130
+      ],
+      [
+        35,
+        5610
+      ],
+      [
+        36,
+        6002
+      ],
+      [
+        37,
+        6501
+      ],
+      [
+        38,
+        7021
+      ],
+      [
+        39,
+        7536
+      ],
+      [
+        40,
+        7787
+      ],
+      [
+        41,
+        7833
+      ],
+      [
+        42,
+        7892
+      ],
+      [
+        43,
+        7975
+      ],
+      [
+        44,
+        8157
+      ],
+      [
+        45,
+        8549
+      ],
+      [
+        46,
+        9002
+      ],
+      [
+        47,
+        9357
+      ],
+      [
+        48,
+        9806
+      ],
+      [
+        49,
+        10417
+      ],
+      [
+        50,
+        11121
+      ],
+      [
+        51,
+        11636
+      ],
+      [
+        52,
+        12294
+      ],
+      [
+        53,
+        12579
+      ]
+    ],
+    "per_tenant": [
+      {
+        "tenant_id": "fe86f79c-02fe-4586-bb79-110fd681b370",
+        "total": 782,
+        "delivered": 782,
+        "peak_rate": 47.6,
+        "avg_rate": 16.3,
+        "p50_latency_s": 7.22,
+        "p95_latency_s": 10.83
+      },
+      {
+        "tenant_id": "a9bcdff5-0531-4f47-9585-ee8d81e4dfc7",
+        "total": 7870,
+        "delivered": 7870,
+        "peak_rate": 585.4,
+        "avg_rate": 145.7,
+        "p50_latency_s": 21.92,
+        "p95_latency_s": 26.3
+      },
+      {
+        "tenant_id": "f8416bc3-4e2e-4614-9d72-f51ca06f0bac",
+        "total": 1575,
+        "delivered": 1575,
+        "peak_rate": 92.4,
+        "avg_rate": 32.1,
+        "p50_latency_s": 7.26,
+        "p95_latency_s": 11.18
+      },
+      {
+        "tenant_id": "69c9111b-bbad-4c28-85f3-2e192b3dc217",
+        "total": 2352,
+        "delivered": 2352,
+        "peak_rate": 165.8,
+        "avg_rate": 48.0,
+        "p50_latency_s": 9.2,
+        "p95_latency_s": 12.34
+      }
+    ],
+    "latency": {
+      "outbox_p50": 6.24,
+      "outbox_p95": 19.22,
+      "deliver_p50": 5.31,
+      "deliver_p95": 10.2,
+      "e2e_p50": 15.08,
+      "e2e_p95": 26.19
+    }
+  },
+  "invariants": [
+    {
+      "name": "no silent loss",
+      "pass": true,
+      "detail": "all reached terminal"
+    },
+    {
+      "name": "ingest accounted",
+      "pass": true,
+      "detail": "submitted 12579 vs persisted 12579"
+    },
+    {
+      "name": "unique mail content",
+      "pass": true,
+      "detail": "12579 distinct / 12579 rows"
+    },
+    {
+      "name": "outbox drained",
+      "pass": true,
+      "detail": "0 unpublished"
+    },
+    {
+      "name": "no duplicate delivery (attempts)",
+      "pass": true,
+      "detail": "0 extra SUCCESS rows  (0.0%)"
+    },
+    {
+      "name": "no duplicate delivery (mailpit/escaped)",
+      "pass": true,
+      "detail": "mailpit 12579 = 12579 unique emails"
+    }
+  ],
+  "diagnostics": {},
+  "verdict": "PASS"
+}

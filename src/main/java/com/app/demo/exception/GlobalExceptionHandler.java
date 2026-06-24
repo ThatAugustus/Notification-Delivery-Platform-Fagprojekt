@@ -16,7 +16,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 /**
- * Turns exceptions from the controller layer into consistent JSON error responses.
+ * turns exceptions from the controllers into json error responses
  */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -69,14 +69,14 @@ public class GlobalExceptionHandler {
         return buildError(HttpStatus.BAD_REQUEST, details);
     }
 
-    // Bad input value, e.g. an unknown channel passed to NotificationChannel.valueOf().
-    // "Not found" throws ResourceNotFoundException instead, so this stays a 400, never a 404.
+    // bad input value, like an unknown channel passed to NotificationChannel.valueOf()
+    // not-found has its own handler (ResourceNotFoundException), so this stays a 400
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<Map<String, Object>> handleBadArgument(IllegalArgumentException ex) {
         return buildError(HttpStatus.BAD_REQUEST, ex.getMessage());
     }
 
-    // Almost always the unique tenant-name constraint. 409 instead of a generic 500.
+    // usually the unique tenant-name constraint, so 409 instead of a generic 500
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<Map<String, Object>> handleDataIntegrity(DataIntegrityViolationException ex) {
         log.warn("Data integrity violation: {}", ex.getMostSpecificCause().getMessage());
@@ -99,7 +99,7 @@ public class GlobalExceptionHandler {
         ));
     }
 
-    // Triggered by IllegalStateException, e.g. a WEBHOOK notification submitted with no webhookUrl.
+    // comes from IllegalStateException, like a webhook notification with no url
     @ExceptionHandler(IllegalStateException.class)
     public ResponseEntity<Map<String, Object>> handleBadRequest(IllegalStateException ex) {
         return buildError(HttpStatus.BAD_REQUEST, ex.getMessage());

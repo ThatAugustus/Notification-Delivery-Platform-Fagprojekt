@@ -6,6 +6,7 @@ import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import org.mockito.InOrder;
 import static org.mockito.Mockito.inOrder;
@@ -26,8 +27,6 @@ import com.app.demo.service.TenantQueueLifecycleService;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 
 class OutboxPublisherTest {
-
-    private static final int BATCH_SIZE = 100;
 
     @Test
     void pollAndPublish_interleavesTenantsAccordingToConfiguredWeights() {
@@ -50,12 +49,14 @@ class OutboxPublisherTest {
             event(tenantB, "b-3", "payload-b-3"),
             event(tenantB, "b-4", "payload-b-4"));
 
-        when(outboxEventRepository.findPendingTenants(BATCH_SIZE)).thenReturn(List.of(tenantA, tenantB));
-        when(outboxEventRepository.findUnpublishedBatchForTenant(eq(tenantA.getTenantId()), eq(BATCH_SIZE)))
+        // Match any batch size so this test doesn't break when BATCH_SIZE is tuned in the publisher.
+        when(outboxEventRepository.findPendingTenants(anyInt())).thenReturn(List.of(tenantA, tenantB));
+        when(outboxEventRepository.findUnpublishedBatchForTenant(eq(tenantA.getTenantId()), anyInt()))
             .thenReturn(tenantAEvents);
-        when(outboxEventRepository.findUnpublishedBatchForTenant(eq(tenantB.getTenantId()), eq(BATCH_SIZE)))
+        when(outboxEventRepository.findUnpublishedBatchForTenant(eq(tenantB.getTenantId()), anyInt()))
             .thenReturn(tenantBEvents);
 
+        when(queueLifecycleService.destinationQueueExists(any(), any())).thenReturn(true);
         when(queueLifecycleService.routingKeyFor(any(), any())).thenAnswer(invocation -> {
             UUID tenantId = invocation.getArgument(1);
             return tenantId.equals(tenantA.getTenantId()) ? "rk-a" : "rk-b";

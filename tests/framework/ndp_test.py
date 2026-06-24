@@ -24,6 +24,7 @@ import argparse
 import base64
 import json
 import os
+import re
 import subprocess
 import sys
 import threading
@@ -45,6 +46,10 @@ G, R, Y, C, DIM, B, NC = (
     "\033[2m", "\033[1m", "\033[0m",
 )
 def c(s, col): return f"{col}{s}{NC}"
+def slugify(text, maxlen=40):
+    """'after fairness change, batch=200' -> 'after-fairness-change-batch-200'"""
+    s = re.sub(r"[^a-z0-9]+", "-", (text or "").lower()).strip("-")
+    return s[:maxlen].strip("-")
 def hr(): print(C + "─" * 67 + NC)
 def head(s): print("\n" + C + "═" * 67 + NC + f"\n{B}  {s}{NC}\n" + C + "═" * 67 + NC)
 
@@ -56,7 +61,7 @@ class Ctx:
     """Everything the run needs, loaded from config + overrides."""
     def __init__(self, cfg):
         self.base_url = cfg["base_url"].rstrip("/")
-        self.admin_key = cfg["admin_key"]
+        self.admin_key = os.getenv("ADMIN_API_KEY", cfg["admin_key"])
         self.mailpit_url = cfg["mailpit_url"].rstrip("/")
         self.db_container = cfg["db_container"]
         self.db_user = cfg["db_user"]
@@ -225,17 +230,26 @@ def rabbit_queue_consumers(ctx):
 
 
 def tenants_needing_workers(ctx, tids, channels):
-    """Which tenant ids lack a consumer on a queue for one of their channels."""
+    """Which tenant ids have no consumer able to handle one of their channels.
+
+    Architecture-agnostic: a tenant is "ready" for a channel if EITHER a shared
+    channel queue ('email-queue') has consumers, OR its per-tenant queue
+    ('email-queue.<tid>') does. So:
+      - shared-queue model  → one queue with consumers serves every tenant (no restart).
+      - per-tenant model    → each tenant needs its own queue (restart when a new one lacks it).
+    """
     consumers = rabbit_queue_consumers(ctx)
     prefixes = []
     if "EMAIL" in channels:
-        prefixes.append("email-queue.")
+        prefixes.append("email-queue")
     if "WEBHOOK" in channels:
-        prefixes.append("webhook-queue.")
+        prefixes.append("webhook-queue")
     missing = []
     for tid in tids:
         for p in prefixes:
-            if consumers.get(f"{p}{tid}", 0) < 1:
+            shared_ok = consumers.get(p, 0) >= 1               # shared queue
+            per_tenant_ok = consumers.get(f"{p}.{tid}", 0) >= 1  # per-tenant queue
+            if not (shared_ok or per_tenant_ok):
                 missing.append(tid)
                 break
     return missing
@@ -361,6 +375,7 @@ def run_load(ctx, run_id, targets):
         "pattern": ctx.load["pattern"],
         "channels": ctx.load["channels"],
         "webhook_url": ctx.load.get("webhook_url", ""),
+        "bad_fraction": ctx.load.get("bad_request_fraction", 0),
     }
     print(f"  pattern={c(cfg['pattern'], Y)} rate={c(cfg['rate'], Y)}/s "
           f"duration={c(cfg['duration'], Y)}s channels={cfg['channels']} "
@@ -553,6 +568,9 @@ def conservation(ctx, run_id, tids, baseline, k6, drain_timed_out):
 
     submitted = int(k6.get("submitted", 0))
     rejected = int(k6.get("rejected", 0))
+    bad_submitted = int(k6.get("bad_submitted", 0))
+    bad_rejected = int(k6.get("bad_rejected", 0))
+    bad_accepted = int(k6.get("bad_accepted", 0))
     accepted_db = psql_int(ctx, f"SELECT COUNT(*) FROM notifications WHERE {scope}")
     distinct_subject = psql_int(ctx, f"SELECT COUNT(DISTINCT subject) FROM notifications WHERE {scope}")
     delivered = psql_int(ctx, f"SELECT COUNT(*) FROM notifications WHERE {scope} AND status='DELIVERED'")
@@ -594,7 +612,8 @@ def conservation(ctx, run_id, tids, baseline, k6, drain_timed_out):
              mailpit=mailpit,
              peak_rate=prof["peak_rate"], active_span=prof["active_span"],
              delivery_per_second=prof["per_second"], per_tenant=per_tenant,
-             latency=latency)
+             latency=latency,
+             bad_submitted=bad_submitted, bad_rejected=bad_rejected, bad_accepted=bad_accepted)
 
     # ── invariants: (name, ok, detail) ──
     inv = []
@@ -609,9 +628,23 @@ def conservation(ctx, run_id, tids, baseline, k6, drain_timed_out):
     inv.append(("no duplicate delivery (attempts)", dup_a == 0,
                 f"{dup_a} extra SUCCESS rows" +
                 (f"  ({dup_a/delivered*100:.1f}%)" if delivered else "")))
-    inv.append(("no duplicate delivery (mailpit/escaped)", dup_b == 0,
-                f"{dup_b} extra emails vs {email_total} unique" if dup_b
-                else f"mailpit {mailpit} = {email_total} unique emails"))
+    # mailpit is the external ground truth, but it has a retention cap (MP_MAX_MESSAGES)
+    # and prunes the oldest above it — so above that cap it UNDER-counts. The invariant only
+    # fails on OVER-delivery (duplicates escaped); a shortfall is flagged but not failed,
+    # since it's almost always the sink pruning at high volume, not app loss.
+    if dup_b > 0:
+        mp_detail = f"{dup_b} extra emails reached recipients (mailpit {mailpit} > {email_total} unique)"
+    elif mailpit == email_total:
+        mp_detail = f"mailpit {mailpit} == {email_total} unique emails (exact)"
+    else:
+        short = email_total - mailpit
+        mp_detail = (f"mailpit {mailpit} < {email_total} delivered ({short} short — "
+                     "mailpit sink likely pruned at this volume; check MP_MAX_MESSAGES, not app loss)")
+    inv.append(("no duplicate delivery (mailpit/escaped)", dup_b == 0, mp_detail))
+    # Only assert this when bad-request chaos was actually injected.
+    if bad_submitted > 0:
+        inv.append(("bad requests kept out", bad_accepted == 0,
+                    f"{bad_rejected}/{bad_submitted} rejected, {bad_accepted} wrongly accepted"))
 
     diagnostics = {}
     if dup_a > 0:
@@ -679,6 +712,8 @@ def scorecard(env, run_id, baseline, ctx, k6, events, drain_s, drain_timed_out,
 
     print(f"  {B}Environment{NC}  {env['cpu']} · {env['ram']} · {env['os']} · {env['host']}")
     print(f"  {B}Run id{NC}       {run_id}")
+    if getattr(ctx, "note", ""):
+        print(f"  {B}Note{NC}         {ctx.note}")
     print(f"  {B}Baseline{NC}     {baseline}")
     ld = ctx.load
     print(f"  {B}Load{NC}         {ld['rate']}/s · {ld['pattern']} · {ld['duration_seconds']}s · "
@@ -700,6 +735,10 @@ def scorecard(env, run_id, baseline, ctx, k6, events, drain_s, drain_timed_out,
     line("Delivered", m["delivered"], pct(m["delivered"], m["accepted_db"]))
     line("Delivery attempts", f"SUCCESS {m['da_success']} · FAIL {m['da_fail']}")
     line("Mailpit received", m["mailpit"])
+    if m.get("bad_submitted", 0):
+        ba = m["bad_accepted"]
+        tag = c(f"{ba} wrongly accepted", R) if ba else c("0 leaked through", G)
+        line("Bad requests (chaos)", f"{m['bad_submitted']} sent · {m['bad_rejected']} rejected", tag)
     line("Drain time", f"{drain_s}s" + (c("  TIMEOUT", R) if drain_timed_out else ""))
 
     hr()
@@ -708,21 +747,26 @@ def scorecard(env, run_id, baseline, ctx, k6, events, drain_s, drain_timed_out,
     span = m.get("active_span", 0)
     avg_active = m["delivered"] / span if span else 0
     print(f"    Peak delivery  {c(f'{peak:.0f}/s', Y)}    {DIM}(max sustained over ~5s){NC}")
+    effective = m["delivered"] / drain_s if drain_s else 0
     print(f"    Avg delivery   {c(f'{avg_active:.0f}/s', Y)}    {DIM}({m['delivered']} delivered over {span}s of active delivery){NC}")
+    print(f"    Effective rate {c(f'{effective:.0f}/s', Y)}    {DIM}({m['delivered']} over {drain_s}s total drain — includes settling tail){NC}")
     print(f"    Time to drain  {c(f'{drain_s}s', Y)}    {DIM}(wall clock incl. redelivery + stale-cleanup tail){NC}")
+    if avg_active and effective < 0.7 * avg_active:
+        print(f"    {c('→', C)} {DIM}delivery finished in ~{span}s but drain took {drain_s}s — status-settling/redelivery tail{NC}")
     print(f"    {DIM}· ingress: {k6.get('submit_rate', 0):.0f}/s accepted (API p95 {k6.get('api_p95_ms', 0):.0f}ms){NC}")
 
     lat = m.get("latency")
     if lat:
         hr()
-        print(f"  {B}Latency breakdown{NC}  {DIM}(where a message spends its time — p50 / p95){NC}")
+        print(f"  {B}Latency breakdown{NC}  {DIM}(time a message spends in each stage — p50 / p95, in seconds){NC}")
+        print(f"    {'stage':<22}{'p50':>8}{'p95':>9}")
         rows = [
             ("accept → published", lat["outbox_p50"], lat["outbox_p95"], "outbox publisher (global)"),
             ("published → delivered", lat["deliver_p50"], lat["deliver_p95"], "per-tenant queue + worker"),
             ("end-to-end", lat["e2e_p50"], lat["e2e_p95"], ""),
         ]
         for name, p50, p95, note in rows:
-            print(f"    {name:<22}{c(f'{p50:>6.1f}', Y)} / {c(f'{p95:>6.1f}', Y)} s   {DIM}{note}{NC}")
+            print(f"    {name:<22}{c(f'{p50:>6.2f}s', Y)} / {c(f'{p95:>6.2f}s', Y)}   {DIM}{note}{NC}")
         e2e = lat["e2e_p50"] or 1
         if lat["outbox_p50"] / e2e > 0.6:
             print(f"    {c('→', C)} outbox publish is {lat['outbox_p50']/e2e*100:.0f}% of latency — "
@@ -736,14 +780,14 @@ def scorecard(env, run_id, baseline, ctx, k6, events, drain_s, drain_timed_out,
         weights = {t["id"]: t.get("weight", 1) for t in targets}
         tot_deliv = sum(t["delivered"] for t in pt) or 1
         hr()
-        print(f"  {B}Per-tenant{NC}  {DIM}(throughput + end-to-end latency; share vs weight shows split fairness){NC}")
-        print(f"    {'tenant':<14}{'wt':>3}{'subm':>7}{'deliv':>7}{'share':>7}{'avg/s':>7}{'peak/s':>7}{'p50':>7}{'p95':>7}")
+        print(f"  {B}Per-tenant{NC}  {DIM}(rates in msg/s · end-to-end latency p50/p95 in seconds · share vs weight = split fairness){NC}")
+        print(f"    {'tenant':<14}{'wt':>3}{'subm':>7}{'deliv':>7}{'share':>7}{'avg/s':>7}{'peak/s':>7}{'p50(s)':>8}{'p95(s)':>8}")
         for t in pt:
             nm = names.get(t["tenant_id"], t["tenant_id"][:8])
             share = t["delivered"] / tot_deliv * 100
             print(f"    {nm:<14}{weights.get(t['tenant_id'],1):>3}{t['total']:>7}{t['delivered']:>7}"
                   f"{share:>6.1f}%{t['avg_rate']:>7.0f}{t['peak_rate']:>7.0f}"
-                  f"{t['p50_latency_s']:>6.1f}{t['p95_latency_s']:>6.1f}")
+                  f"{t['p50_latency_s']:>8.1f}{t['p95_latency_s']:>8.1f}")
 
     hr()
     print(f"  {B}Correctness{NC}")
@@ -782,9 +826,13 @@ def scorecard(env, run_id, baseline, ctx, k6, events, drain_s, drain_timed_out,
 
 def save_json(run_id, env, baseline, ctx, k6, events, drain_s, drain_timed_out, m, inv, diagnostics, verdict_pass, samples):
     os.makedirs(RESULTS_DIR, exist_ok=True)
-    path = os.path.join(RESULTS_DIR, f"framework-{run_id}.json")
+    note = getattr(ctx, "note", "")
+    slug = slugify(note)
+    fname = f"framework-{run_id}" + (f"-{slug}" if slug else "") + ".json"
+    path = os.path.join(RESULTS_DIR, fname)
     out = {
         "run_id": run_id,
+        "note": note,
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "environment": env,
         "baseline_db_clock": baseline,
@@ -817,6 +865,10 @@ def main():
     ap.add_argument("--duration", type=int)
     ap.add_argument("--chaos", action="store_true", help="enable chaos faults from config")
     ap.add_argument("--no-teardown", action="store_true", help="keep test tenants after the run")
+    ap.add_argument("--note", default="", help="short label for this run (e.g. 'after fairness change'); "
+                    "shown in the scorecard and added to the report filename")
+    ap.add_argument("--bad-requests", type=float, default=None, metavar="FRACTION",
+                    help="chaos: fraction (0..1) of requests sent malformed; must all be rejected, never persisted")
     args = ap.parse_args()
 
     with open(args.config) as f:
@@ -824,9 +876,11 @@ def main():
     if args.pattern: cfg["load"]["pattern"] = args.pattern
     if args.rate: cfg["load"]["rate"] = args.rate
     if args.duration: cfg["load"]["duration_seconds"] = args.duration
+    if args.bad_requests is not None: cfg["load"]["bad_request_fraction"] = args.bad_requests
     if args.chaos: cfg["chaos"]["enabled"] = True
 
     ctx = Ctx(cfg)
+    ctx.note = (args.note or cfg.get("note", "")).strip()
     run_id = datetime.now().strftime("%Y%m%d-%H%M%S")
     env = environment()
 

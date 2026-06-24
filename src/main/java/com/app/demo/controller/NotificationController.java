@@ -47,7 +47,7 @@ public class NotificationController {
         rateLimiterService.assertAllowed(tenant.getId());
         Notification saved = notificationService.createNotification(tenant, request);
 
-        // 202: the notification is queued, delivery happens asynchronously.
+        // 202, it's queued and gets delivered in the background
         return ResponseEntity.status(202).body(Map.of("id", saved.getId(), "status", "ACCEPTED"));
     }
 

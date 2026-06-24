@@ -57,7 +57,7 @@ services:
     image: axllent/mailpit:latest
     container_name: ndp-mailpit
     environment:
-      MP_MAX_MESSAGES: 100000
+      MP_MAX_MESSAGES: 1000000
     ports:
       - "1025:1025"
       - "8025:8025"
