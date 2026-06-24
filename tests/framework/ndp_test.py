@@ -715,8 +715,12 @@ def scorecard(env, run_id, baseline, ctx, k6, events, drain_s, drain_timed_out,
     span = m.get("active_span", 0)
     avg_active = m["delivered"] / span if span else 0
     print(f"    Peak delivery  {c(f'{peak:.0f}/s', Y)}    {DIM}(max sustained over ~5s){NC}")
+    effective = m["delivered"] / drain_s if drain_s else 0
     print(f"    Avg delivery   {c(f'{avg_active:.0f}/s', Y)}    {DIM}({m['delivered']} delivered over {span}s of active delivery){NC}")
+    print(f"    Effective rate {c(f'{effective:.0f}/s', Y)}    {DIM}({m['delivered']} over {drain_s}s total drain — includes settling tail){NC}")
     print(f"    Time to drain  {c(f'{drain_s}s', Y)}    {DIM}(wall clock incl. redelivery + stale-cleanup tail){NC}")
+    if avg_active and effective < 0.7 * avg_active:
+        print(f"    {c('→', C)} {DIM}delivery finished in ~{span}s but drain took {drain_s}s — status-settling/redelivery tail{NC}")
     print(f"    {DIM}· ingress: {k6.get('submit_rate', 0):.0f}/s accepted (API p95 {k6.get('api_p95_ms', 0):.0f}ms){NC}")
 
     lat = m.get("latency")
