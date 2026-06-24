@@ -64,7 +64,7 @@ public class TenantAdminController {
         return ResponseEntity.noContent().build(); // 204
     }
 
-    // Restore a soft-deleted tenant. Idempotent: no error if already active.
+    // restore a soft-deleted tenant. safe to call even if it's already active
     @PostMapping("/{id}/restore")
     public ResponseEntity<TenantResponse> restore(@PathVariable UUID id) {
         Tenant restored = service.restore(id);

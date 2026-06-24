@@ -94,7 +94,7 @@ public class TenantManagementService {
     public Tenant restore(UUID id) {
         Tenant tenant = getAny(id);
         if (!tenant.isDeleted()) {
-            // Already active, so restore is a no-op rather than an error.
+            // already active, so restore just does nothing instead of erroring
             log.info("Tenant {} is already active; restore is a no-op", id);
             return tenant;
         }
@@ -104,7 +104,7 @@ public class TenantManagementService {
         return tenant;
     }
 
-    // 256-bit random secret, base64url-encoded, used as the HMAC key for webhook signing.
+    // random 256-bit secret, base64url encoded, used as the hmac key for signing webhooks
     private String generateWebhookSecret() {
         byte[] bytes = new byte[32];
         secureRandom.nextBytes(bytes);

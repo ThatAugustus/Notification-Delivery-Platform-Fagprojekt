@@ -45,7 +45,7 @@ public class AdminAuthFilter extends OncePerRequestFilter {
             return;
         }
 
-        // Fail closed: if no admin key is configured, no one gets into the admin endpoints.
+        // if no admin key is configured, nobody can hit the admin endpoints
         if (configuredKey == null || configuredKey.isBlank()) {
             log.error("admin.api-key is not configured, rejecting admin request to {}", path);
             writeUnauthorized(response, "Admin endpoints are not configured on this server");
@@ -78,7 +78,7 @@ public class AdminAuthFilter extends OncePerRequestFilter {
         objectMapper.writeValue(response.getWriter(), body);
     }
 
-    // Compares in constant time so an attacker can't learn the key from response timing.
+    // constant-time compare so the response timing doesn't leak the key
     private static boolean constantTimeEquals(String a, String b) {
         if (a.length() != b.length()) return false;
         int result = 0;

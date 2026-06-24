@@ -39,7 +39,7 @@ public class ApiKeyManagementService {
         this.tenantManagementService = tenantManagementService;
     }
 
-    // Returns the saved key plus the raw key. The raw key is only ever returned here: never stored, never shown again.
+    // returns the saved key plus the raw key. the raw key is only ever returned here, never stored
     @Transactional
     public CreatedKey create(UUID tenantId, CreateApiKeyRequest request) {
         Tenant tenant = tenantManagementService.getActive(tenantId);
@@ -69,7 +69,7 @@ public class ApiKeyManagementService {
         ApiKey key = apiKeyRepository.findById(keyId)
                 .orElseThrow(() -> new ResourceNotFoundException("API key not found: " + keyId));
 
-        // Defend against cross-tenant revocation (one tenant revoking another's key).
+        // stop one tenant from revoking another tenant's key
         if (!key.getTenant().getId().equals(tenantId)) {
             throw new ResourceNotFoundException("API key not found: " + keyId);
         }

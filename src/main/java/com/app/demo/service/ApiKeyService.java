@@ -21,8 +21,8 @@ public class ApiKeyService {
         this.apiKeyRepository = apiKeyRepository;
     }
 
-    // Hashes the raw key with SHA-256, then looks it up in the database.
-    // Returns the Tenant if the key exists and is active, throws otherwise.
+    // hash the raw key with SHA-256 and look it up in the db
+    // returns the tenant if the key exists and is active, otherwise throws
     public Tenant resolveTenant(String rawApiKey) {
         String hash = sha256(rawApiKey);
         ApiKey apiKey = apiKeyRepository.findByKeyHash(hash)

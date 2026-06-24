@@ -65,12 +65,12 @@ public class Tenant {
         this.deletedAt = Instant.now();
     }
 
-    // Convenience: restores a previously soft-deleted tenant.
+    // restores a soft-deleted tenant
     public void restore() {
         this.deletedAt = null;
     }
 
-    // Convenience: true if this tenant has been soft-deleted.
+    // true if the tenant's been soft-deleted
     public boolean isDeleted() {
         return deletedAt != null;
     }
