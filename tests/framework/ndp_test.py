@@ -628,9 +628,19 @@ def conservation(ctx, run_id, tids, baseline, k6, drain_timed_out):
     inv.append(("no duplicate delivery (attempts)", dup_a == 0,
                 f"{dup_a} extra SUCCESS rows" +
                 (f"  ({dup_a/delivered*100:.1f}%)" if delivered else "")))
-    inv.append(("no duplicate delivery (mailpit/escaped)", dup_b == 0,
-                f"{dup_b} extra emails vs {email_total} unique" if dup_b
-                else f"mailpit {mailpit} = {email_total} unique emails"))
+    # mailpit is the external ground truth, but it has a retention cap (MP_MAX_MESSAGES)
+    # and prunes the oldest above it — so above that cap it UNDER-counts. The invariant only
+    # fails on OVER-delivery (duplicates escaped); a shortfall is flagged but not failed,
+    # since it's almost always the sink pruning at high volume, not app loss.
+    if dup_b > 0:
+        mp_detail = f"{dup_b} extra emails reached recipients (mailpit {mailpit} > {email_total} unique)"
+    elif mailpit == email_total:
+        mp_detail = f"mailpit {mailpit} == {email_total} unique emails (exact)"
+    else:
+        short = email_total - mailpit
+        mp_detail = (f"mailpit {mailpit} < {email_total} delivered ({short} short — "
+                     "mailpit sink likely pruned at this volume; check MP_MAX_MESSAGES, not app loss)")
+    inv.append(("no duplicate delivery (mailpit/escaped)", dup_b == 0, mp_detail))
     # Only assert this when bad-request chaos was actually injected.
     if bad_submitted > 0:
         inv.append(("bad requests kept out", bad_accepted == 0,
