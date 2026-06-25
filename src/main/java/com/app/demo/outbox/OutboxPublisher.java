@@ -55,7 +55,7 @@ public class OutboxPublisher {
     }
 
     @Scheduled(fixedDelay = 200) // ms
-    @Transactional // spring handles the db transaction, ensuring atomicity
+    @Transactional 
     public void pollAndPublish() {
         List<PendingOutboxTenantView> pendingTenants = outboxEventRepository.findPendingTenants(BATCH_SIZE);
         if (pendingTenants.isEmpty()) {
@@ -115,8 +115,6 @@ public class OutboxPublisher {
         var notification = event.getNotification();
         MDC.put("notificationId", notification.getId().toString());
         try {
-            // if the queue isn't there we can't publish. for a deleted tenant it's never coming back
-            // so just fail it, but for an active tenant it's probably not set up yet so try again later
             if (!queueLifecycleService.destinationQueueExists(
                     notification.getChannel(), notification.getTenant().getId())) {
                 if (notification.getTenant().isDeleted()) {

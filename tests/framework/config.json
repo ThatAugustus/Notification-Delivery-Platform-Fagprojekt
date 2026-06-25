@@ -21,10 +21,10 @@
 
     "//tenants": "List as many tenants as you want by name; the script creates any that don't exist and restarts the app (ndp-app) once so their workers register. Tenants persist between runs (reused, not deleted). 'weight' sets each tenant's share of the total rate — use unequal weights (e.g. 10 vs 1) for noisy-neighbour / fairness runs.",
     "tenants": [
-      { "name": "ndp-test-a", "weight": 1 },
-      { "name": "ndp-test-b", "weight": 10 },
-      { "name": "ndp-test-c", "weight": 2 },
-      { "name": "ndp-test-d", "weight": 3 }
+      { "name": "ndp-test-d", "weight": 1 },
+      { "name": "ndp-test-e", "weight": 10 },
+      { "name": "ndp-test-f", "weight": 2 },
+      { "name": "ndp-test-g", "weight": 3 }
     ],
 
     "webhook_url": "http://host.docker.internal:8080/actuator/health"

@@ -21,8 +21,7 @@ public class RedisIdempotencyCache {
         this.redis = redis;
     }
 
-
-     // Check if we've already seen this (tenantId + idempotencyKey) combination.
+     // Check if valid (tenantId + idempotencyKey) combination.
      // Returns the existing notification ID if found, null if not
     public UUID get(UUID tenantId, String idempotencyKey) {
         try {
@@ -34,7 +33,6 @@ public class RedisIdempotencyCache {
             }
             return null;
         } catch (Exception e) {
-            // If Redis is down, return null, then we fall back to PostgreSQL
             log.warn("Redis GET failed, falling back to database: {}", e.getMessage());
             return null;
         }
@@ -51,8 +49,7 @@ public class RedisIdempotencyCache {
         }
     }
 
-     // the key format idempotency:{tenantId}:{idempotencyKey}
-
+    // the key format idempotency:{tenantId}:{idempotencyKey}
     private String buildKey(UUID tenantId, String idempotencyKey) {
         return "idempotency:" + tenantId + ":" + idempotencyKey;
     }
