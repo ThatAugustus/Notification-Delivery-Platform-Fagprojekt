@@ -45,17 +45,14 @@ public abstract class BaseNotificationWorker {
         this.meterRegistry = meterRegistry;
     }
 
-    /**
-     * The template method that handles all the database and error-handling boilerplate.
-     * Child classes should call this method from their @RabbitListener methods.
-     */
+    // shared db + error-handling flow; each channel worker calls this from its listener
     protected void processMessage(Message message) { 
         long startTime = System.currentTimeMillis();
         NotificationPayload payload = null;
         Notification notification = null;
 
         try {
-            // 1. Parse JSON from RabbitMQ
+            // parse the JSON off the queue
             String body = new String(message.getBody());
             payload = objectMapper.readValue(body, NotificationPayload.class);
             log.info("Worker received request for notification: {}", payload.getNotificationId());
@@ -76,12 +73,12 @@ public abstract class BaseNotificationWorker {
                     .description("Messages received by workers (before processing)")
                     .register(meterRegistry).increment();
 
-            // 2. Fetch Notification
+            // load the notification row
             final String notifId = payload.getNotificationId().toString();
             notification = notificationRepository.findById(payload.getNotificationId())
                     .orElseThrow(() -> new IllegalArgumentException("Notification not found: " + notifId));
 
-            // 3. check for successful delivery attempts
+            // skip if it already delivered once (guards against redelivery)
             if (deliveryAttemptRepository.existsByNotification_IdAndStatus(payload.getNotificationId(), DeliveryAttemptStatus.SUCCESS)) {
                 log.warn("Notification already successfully delivered: {}", payload.getNotificationId());
                 Counter.builder("worker.processed")
@@ -96,14 +93,14 @@ public abstract class BaseNotificationWorker {
                 return;
 
             }
-            // 4. Mark the notification as processing
+            // mark it processing
             notification.setStatus(NotificationStatus.PROCESSING);
             notificationRepository.save(notification);
 
-            // 5. Delegate the actual delivery to the specific channel worker
+            // hand off to the channel-specific worker
             deliver(payload, notification);
 
-            // 6. Success, Record it
+            // delivered, record the attempt
             long duration = System.currentTimeMillis() - startTime;
             notification.setStatus(NotificationStatus.DELIVERED);
             notificationRepository.save(notification);
@@ -143,8 +140,8 @@ public abstract class BaseNotificationWorker {
             // Derive error reason for metrics tagging
             String errorReason = e.getClass().getSimpleName();
 
-            // 5. Failure — Record it
-            if (notification != null) { // case when notification is not null, i.e. the notification was found
+            // failed, record the attempt
+            if (notification != null) { // we have the row, so we can retry it or mark it failed
                 String channel = notification.getChannel().name().toLowerCase();
                 String tenantId = notification.getTenant().getId().toString();
 
@@ -201,7 +198,7 @@ public abstract class BaseNotificationWorker {
                 attempt.setDurationMs(duration);
 
                 deliveryAttemptRepository.save(attempt);
-            } else { // case when notification is null, i.e. the notification was not found
+            } else { // no row to update, all we can do is push it to the DLQ
                     log.error("Unrecoverable message rejected to DLQ: {}", e.getMessage());
                     Counter.builder("worker.errors")
                             .tag("channel", "unknown")
@@ -213,13 +210,6 @@ public abstract class BaseNotificationWorker {
         }
     }
 
-    /**
-     * Abstract method that concrete subclasses MUST implement to define 
-     * exactly how the notification is delivered for their specific channel.
-     * 
-     * @param payload      The deserialized JSON metadata from RabbitMQ
-     * @param notification The actual PostgreSQL entity record
-     * @throws Exception   if the delivery mechanism fails (caught and logged as FAILED by the base worker)
-     */
+    // each channel implements its own send; throwing here counts as a failed attempt
     protected abstract void deliver(NotificationPayload payload, Notification notification) throws Exception;
 }

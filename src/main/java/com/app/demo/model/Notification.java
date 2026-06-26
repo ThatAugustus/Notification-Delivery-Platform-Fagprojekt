@@ -76,7 +76,7 @@ public class Notification {
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt = Instant.now();
 
-    // Constructor for creating a new notification
+    
     public Notification(Tenant tenant, NotificationChannel channel, String recipient, String subject, String body) {
         this.tenant = tenant;
         this.channel = channel;

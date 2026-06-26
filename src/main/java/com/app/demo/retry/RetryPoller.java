@@ -80,7 +80,7 @@ public class RetryPoller {
         }
     }
 
-    // Helper method to build the JSON payload for the retry message
+    // rebuild the queue payload from the notification row
     private String buildPayload(Notification notification) {
         try {
             String fromEmail = notification.getTenant().getDefaultFromEmail() != null

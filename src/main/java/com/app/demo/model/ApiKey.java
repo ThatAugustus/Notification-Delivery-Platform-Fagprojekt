@@ -50,7 +50,7 @@ public class ApiKey {
     @Column(name = "revoked_at")
     private Instant revokedAt;
 
-    // Constructor for creating a new API key
+    // active and createdAt default themselves; the rest is set here
     public ApiKey(Tenant tenant, String keyHash, String prefix, String name) {
         this.tenant = tenant;
         this.keyHash = keyHash;

@@ -50,8 +50,7 @@ public class Tenant {
     @Column(name = "deleted_at")
     private Instant deletedAt;
 
-    // Constructor for creating a new tenant
-    public Tenant(String name) { 
+    public Tenant(String name) {
         // we only need name because id, createdAt, and updatedAt are handled automatically
         this.name = name; 
     }

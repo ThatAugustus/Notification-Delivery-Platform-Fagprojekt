@@ -51,7 +51,7 @@ public class DeliveryAttempt {
     @Column(name = "attempted_at", nullable = false, updatable = false)
     private Instant attemptedAt = Instant.now();
 
-    // Constructor for creating a new delivery attempt
+    // id and attemptedAt default. the worker fills in the rest
     public DeliveryAttempt(Notification notification, int attemptNumber, DeliveryAttemptStatus status, String errorMessage, Long durationMs) {
         this.notification = notification;
         this.attemptNumber = attemptNumber;
