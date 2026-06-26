@@ -1,172 +1,144 @@
-# Notification Delivery Platform - Fagprojekt (Spring 2026)
+# Notification Delivery Platform
 
-A multi-tenant notification delivery platform built as a DTU Fagprojekt (Spring 2026).
+# Notification Delivery Platform
 
-## What Is This?
+Multi-tenant notification platform for the 02122 Software Technology project (DTU, Spring 2026).
+Applications submit notifications over a REST API, and the platform delivers them to email and
+webhook endpoints in the background — reliably, even when a delivery provider or the broker is
+briefly down, and without letting one busy tenant starve the others when several share an instance.
 
-A standalone backend service that sits between applications and delivery providers (email, webhooks). Applications submit notifications through a REST API; the platform guarantees reliable delivery across multiple tenants sharing one instance.
+Under the hood it uses a transactional outbox so an accepted notification isn't silently lost,
+at-least-once delivery with idempotency and retries, and per-tenant rate limiting plus weighted
+queueing so no single tenant can monopolise delivery. Built with Java 21 / Spring Boot, PostgreSQL,
+RabbitMQ and Redis, wired together with Docker Compose. The full write-up is in the report; this
+README is just how to run and test it. Furthermore we have a README in the tests/framework folder for the load and chaos test setup
 
-Designed for **business-critical notifications** — password resets, fraud alerts, payment confirmations, invoices — where loss, significant delay, or duplication is unacceptable.
+## What you need
 
-## Core Engineering Challenges
+- Docker + Docker Compose
+- Java 21 (only for running the app from Gradle or running the test suite)
 
-1. **Reliable Async Delivery** — Transactional outbox pattern, at-least-once processing, exponential backoff with jitter, dead-letter queues, idempotency
-2. **Multi-Tenant Fairness** — Per-tenant rate limiting (token bucket), queue partitioning strategies, noisy neighbor prevention
+## Run it
 
-## Tech Stack
+Pick one.
 
-| Component | Technology |
-|---|---|
-| Application | Java 21 + Spring Boot 4 |
-| Database | PostgreSQL |
-| Message Queue | RabbitMQ |
-| Cache / Rate Limiting | Redis |
-| Infrastructure | Docker Compose |
-| Load Testing | k6 |
-| Integration Testing | Testcontainers |
+**A) Everything in Docker (one command).** Builds the app image and starts it with Postgres,
+RabbitMQ, Redis, Mailpit and the monitoring stack. The first build takes a few minutes.
 
-## Getting Started
-
-### Prerequisites
-- Java 21
-- Docker & Docker Compose
-
-### Run docker containers + application in terminal
 ```bash
-docker compose up -d        # Start PostgreSQL, RabbitMQ, Redis, mailpit, adminer, prometheus, grafana
-./gradlew bootRun           # Start the application
+docker compose --profile full up -d --build
 ```
 
-### Run full app in docker
+**B) Backing services in Docker, app from Gradle** (quicker to restart while working on it):
+
 ```bash
-# run docker and build docker app container
-docker compose --profile full up -d --build # if code changed rebuild image
-docker compose --profile full up -d         # else
-
-# view logs
-docker compose --profile full logs -f app # app only
-docker compose logs -f app          # follow app logs only
-docker compose logs -f # all logs
-docker compose logs app --tail 50   # last 50 lines of app
-
-# stop docker containers
-docker compose --profile full down 
+docker compose up -d        # postgres, rabbitmq, redis, mailpit, grafana, ...
+./gradlew bootRun           # the app, on http://localhost:8080
 ```
 
+Either way, wait until it reports healthy:
 
-### Test
 ```bash
-./gradlew test               # Unit + integration tests
+curl http://localhost:8080/actuator/health      # {"status":"UP"}
 ```
 
-### Testing tools
+The database is pre-seeded with one tenant and a working API key, so you can send something right
+away without creating anything first.
 
-#### Load testing
+## Send a notification
 
-```bash
-tests/load/run-load-test.sh
-```
-```bash
-# not done yet but works for basic tests
-tests/load/pipeline-test.sh
-
-
-
-#### API Test Key
+The seeded key is `my-test-key-123`. Send an email:
 
 ```bash
-my-test-key-123
-```
-
-#### POST requests
-```bash
-# Send a test email
 curl -X POST http://localhost:8080/api/v1/notifications \
   -H "X-API-Key: my-test-key-123" \
   -H "Content-Type: application/json" \
   -d '{
     "channel": "EMAIL",
-    "recipient": "test@example.com",
-    "subject": "Test Email",
-    "content": "This is a test email.",
-    "idempotencyKey": "test-001"
-  }'
-
-# Send a test webhook
-curl -X POST http://localhost:8080/api/v1/notifications \
-  -H "X-API-Key: my-test-key-123" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "channel": "webhook",
-    "recipient": "https://example.com/webhook",
-    "subject": "Test Webhook",
-    "content": "This is a test webhook."
+    "recipient": "alice@example.com",
+    "subject": "Hello",
+    "content": "First test message",
+    "idempotencyKey": "demo-1"
   }'
 ```
 
-### UI's
+You get back `202 Accepted` with an id. Delivery happens in the background, so give it a second or
+two and open **Mailpit at http://localhost:8025**; the email is waiting there.
 
+Check where a notification is in its lifecycle (it moves ACCEPTED -> QUEUED -> PROCESSING -> DELIVERED):
 
-#### Adminer (database):
+```bash
+curl http://localhost:8080/api/v1/notifications/<id> \
+  -H "X-API-Key: my-test-key-123"
+```
 
-**Link:** http://localhost:8081
+`idempotencyKey` is required. Send the same one twice and you get the same notification back instead
+of a second copy.
 
-**Logging in:**
-| Field    | Value                 |
-| -------- | --------------------- |
-| System   | PostgreSQL            |
-| Server   | postgres              |
-| Username | dev                   |
-| Password | dev                   |
-| Database | notification_platform |
+Webhooks work the same way: set `"channel": "WEBHOOK"` and add `"webhookUrl": "https://..."` pointing
+at a reachable endpoint (a https://webhook.site URL is the easy way to watch it land).
 
-#### RabbitMQ (queues):
+## Manage tenants and API keys (optional)
 
-**Link:** http://localhost:15673
+Admin endpoints live under `/api/v1/admin` and use a separate admin key (`local-dev-fallback-key` in
+dev). Create a tenant and mint a key for it:
 
-| Field    | Value                 |
-| -------- | --------------------- |
-| Username | dev                   |
-| Password | dev                   |
+```bash
+# create a tenant
+curl -X POST http://localhost:8080/api/v1/admin/tenants \
+  -H "X-Admin-Key: local-dev-fallback-key" \
+  -H "Content-Type: application/json" \
+  -d '{"name": "acme", "defaultFromEmail": "noreply@acme.com"}'
 
-#### Mailpit (emails):
+# issue a key for it (the raw key is shown once, here)
+curl -X POST http://localhost:8080/api/v1/admin/tenants/<tenantId>/api-keys \
+  -H "X-Admin-Key: local-dev-fallback-key" \
+  -H "Content-Type: application/json" \
+  -d '{"name": "prod"}'
+```
 
-**Link:** http://localhost:8025
+## Run the tests
 
-#### Swagger (API documentation)
+Integration tests drive the full pipeline against real Postgres, RabbitMQ and Redis, which
+Testcontainers starts automatically, so Docker must be running:
 
-**Link:** http://localhost:8080
+```bash
+./gradlew test
+```
 
-#### Actuator (health checks)
+There's also a correctness/load framework that pushes traffic through the real API, waits for the
+pipeline to drain, and asserts that nothing was lost or delivered twice; the duplicate check is
+against Mailpit, not just the database. It needs `python3` and `k6`, with the stack up and the app on
+:8080, and prints a single PASS/FAIL scorecard:
 
-**Link:** http://localhost:8080/actuator/health
+```bash
+python3 tests/framework/ndp_test.py
+```
 
-#### Prometheus (metrics)
+See `tests/framework/README.md` for the options.
 
-**Link:** http://localhost:9090
+## Where to look
 
-Raw metrics endpoint: http://localhost:8080/actuator/prometheus
+| What | URL | Login |
+|---|---|---|
+| App health | http://localhost:8080/actuator/health | |
+| Swagger / API docs | http://localhost:8080/swagger-ui/index.html | |
+| Mailpit (delivered emails) | http://localhost:8025 | |
+| Grafana (dashboards) | http://localhost:3000 | dev / dev |
+| RabbitMQ (queues) | http://localhost:15673 | dev / dev |
+| Adminer (database) | http://localhost:8081 | server `postgres`, db `notification_platform`, dev / dev |
+| Prometheus (metrics) | http://localhost:9090 | |
 
-#### Grafana (dashboards)
+## Stop it
 
-**Link:** http://localhost:3000
-
-| Field    | Value |
-| -------- | ----- |
-| Username | dev   |
-| Password | dev   |
-
-**custom grafana dashboards at:** 
-
-http://localhost:3000/d/ndp-overview/notification-delivery-platform
-
+```bash
+docker compose --profile full down       # add -v to also wipe the data volumes
+```
 
 ## Team
 
-- August Hansen
-- Anton Mervig
 - Ali Hamza Zeb
+- August Allon Sander Hansen
+- Anton Marius Mervig Schrøder
 
-## License
-
-University project — DTU, Spring 2026.
+DTU 02122, Spring 2026.

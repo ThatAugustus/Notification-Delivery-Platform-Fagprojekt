@@ -12,7 +12,7 @@
 
   "load": {
     "pattern": "ramp",
-    "rate": 450,
+    "rate": 150,
     "duration_seconds": 40,
     "channels": ["EMAIL"],
 
@@ -31,12 +31,12 @@
   },
 
   "chaos": {
-    "enabled": false,
+    "enabled": true,
     "faults": [
       {
-        "label": "broker_outage",
-        "container": "ndp-rabbitmq",
-        "action": "pause",
+        "label": "cache_outage",
+        "container": "ndp-redis",
+        "action": "stop",
         "at_seconds": 10,
         "duration_seconds": 10
       }
