@@ -1,7 +1,5 @@
 # Notification Delivery Platform
 
-# Notification Delivery Platform
-
 Multi-tenant notification platform for the 02122 Software Technology project (DTU, Spring 2026).
 Applications submit notifications over a REST API, and the platform delivers them to email and
 webhook endpoints in the background — reliably, even when a delivery provider or the broker is
@@ -96,6 +94,30 @@ curl -X POST http://localhost:8080/api/v1/admin/tenants/<tenantId>/api-keys \
   -H "Content-Type: application/json" \
   -d '{"name": "prod"}'
 ```
+
+## Configuration
+
+Application settings live in `src/main/resources/application.properties` — the ports, the
+datasource, the RabbitMQ / Redis / mail connections, the per-tenant rate limits, and the admin-key
+fallback are all defined there. Two profile-specific overrides sit beside it:
+
+- `application-docker.properties` — used when the app runs inside Docker (the `--profile full` run
+  sets `SPRING_PROFILES_ACTIVE=docker`); it points the app at the Docker service hostnames instead
+  of `localhost`.
+- `application-realmail.properties` — swaps Mailpit for a real SMTP server.
+
+Some settings worth knowing in `application.properties`:
+
+| Setting | What it does |
+|---|---|
+| `app.notification-queues.mode` | queueing strategy: `per-tenant` (one queue per tenant) or `shared` (one queue for everyone) |
+| `app.outbox-fairness.weights.<tenant>=<n>` | per-tenant publishing weight for the weighted round-robin outbox — a tenant with weight 10 gets ~10× the delivery share; defaults to 1 |
+| `app.rate-limit.enabled` / `.capacity` / `.refill-tokens` / `.refill-period-seconds` | per-tenant token-bucket rate limiting — turn it off, or change how fast a tenant may submit |
+| `spring.mail.host` / `spring.mail.port` | point email at a real SMTP server instead of Mailpit (or use the `realmail` profile) |
+| `admin.api-key` (env `ADMIN_API_KEY`) | the admin API key; defaults to `local-dev-fallback-key` for dev |
+
+The seeded tenant and API key come from the Flyway migrations in `src/main/resources/db/migration`,
+not from the properties file.
 
 ## Run the tests
 
